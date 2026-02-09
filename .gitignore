@@ -1,0 +1,8 @@
+*.exe
+zhihu-go
+
+.idea/
+*.iml
+
+.DS_Store
+Thumbs.db
