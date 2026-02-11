@@ -1,8 +1,9 @@
 package dao
 
 import (
-	"gorm.io/gorm"
 	"zhihu-go/internal/model"
+
+	"gorm.io/gorm"
 )
 
 //创建新用户
@@ -26,7 +27,7 @@ func FollowUser(db *gorm.DB, followerID, followeeID uint) error {
 		FolloweeID: followeeID,
 		FollowerID: followerID,
 	}
-	return db.Create(follow).Error
+	return db.Create(&follow).Error
 }
 
 //获取用户的所有关注者

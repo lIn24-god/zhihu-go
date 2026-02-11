@@ -1,9 +1,11 @@
 package router
 
 import (
+	"zhihu-go/internal/handler"
+	"zhihu-go/internal/middleware"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"zhihu-go/internal/handler"
 )
 
 func SetUpRouter(r *gin.Engine, db *gorm.DB) *gin.Engine {
@@ -13,9 +15,19 @@ func SetUpRouter(r *gin.Engine, db *gorm.DB) *gin.Engine {
 		c.Next()
 	})
 
-	r.POST("/register", handler.Register)
-	r.POST("/login", handler.Login)
-	r.POST("/follow", handler.Follow)
+	//公共路由
+	public := r.Group("/api")
+	{
+		public.POST("/login", handler.Login)
+		public.POST("/register", handler.Register)
+	}
+
+	//需要认证的路由
+	protected := r.Group("/api")
+	protected.Use(middleware.AuthMiddleware())
+	{
+		protected.POST("/follow", handler.Follow)
+	}
 
 	return r
 }

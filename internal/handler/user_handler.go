@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"zhihu-go/internal/service"
+	"zhihu-go/internal/utils"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -52,9 +53,21 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	c.Set("user_id", user.ID)
+	// 生成JWT token
+	token, err := utils.GenerateToken(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Login successful",
+		"token":   token,
+		"user": gin.H{
+			"id":       user.ID,
+			"username": user.Username,
+		},
+	})
 }
 
 //关注
