@@ -1,10 +1,11 @@
 package service
 
 import (
-	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 	"zhihu-go/internal/dao"
 	"zhihu-go/internal/model"
+
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 //用户注册
@@ -40,10 +41,4 @@ func LoginUser(db *gorm.DB, username, password string) (*model.User, error) {
 	}
 
 	return user, err
-}
-
-//关注用户
-
-func FollowUser(db *gorm.DB, followeeID, followerID uint) error {
-	return dao.FollowUser(db, followerID, followeeID)
 }

@@ -5,6 +5,8 @@ import (
 	"zhihu-go/internal/service"
 	"zhihu-go/internal/utils"
 
+	"zhihu-go/internal/dto"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -12,10 +14,7 @@ import (
 //用户注册
 
 func Register(c *gin.Context) {
-	var request struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
+	var request = dto.UserRequest{}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
@@ -35,10 +34,7 @@ func Register(c *gin.Context) {
 //用户登录
 
 func Login(c *gin.Context) {
-	var request struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
+	var request = dto.UserRequest{}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
@@ -68,39 +64,4 @@ func Login(c *gin.Context) {
 			"username": user.Username,
 		},
 	})
-}
-
-//关注
-
-func Follow(c *gin.Context) {
-	var request struct {
-		FolloweeID uint `json:"followee_id"`
-	}
-
-	// 获取已存储的 user_id（登录时已设置）
-	followerID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
-
-	// 类型断言，确保 followerID 是 uint 类型
-	followerIDUint, ok := followerID.(uint)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
-		return
-	}
-
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
-		return
-	}
-
-	db := c.MustGet("db").(*gorm.DB)
-	if err := service.FollowUser(db, request.FolloweeID, followerIDUint); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to follow user"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Followed successfully"})
 }
