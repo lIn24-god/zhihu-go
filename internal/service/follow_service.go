@@ -32,3 +32,22 @@ func GetFollowers(db *gorm.DB, userID uint) ([]dto.FollowUserInfo, error) {
 
 	return result, err
 }
+
+//获取用户的所有关注
+
+func GetFollowees(db *gorm.DB, userID uint) ([]dto.FollowUserInfo, error) {
+	followees, err := dao.GetFollowees(db, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []dto.FollowUserInfo
+	for _, f := range followees {
+		result = append(result, dto.FollowUserInfo{
+			Username: f.Username,
+			ID:       f.ID,
+		})
+	}
+
+	return result, err
+}

@@ -20,22 +20,4 @@ func GetUserByUsername(db *gorm.DB, username string) (*model.User, error) {
 	return &user, err
 }
 
-//创建用户关注关系
-
-func FollowUser(db *gorm.DB, followerID, followeeID uint) error {
-	follow := model.Follow{
-		FolloweeID: followeeID,
-		FollowerID: followerID,
-	}
-	return db.Create(&follow).Error
-}
-
-//获取用户的所有粉丝
-
-func GetFollowers(db *gorm.DB, userID uint) ([]model.User, error) {
-	var followers []model.User
-	err := db.Joins("Join follows ON follows.follower_id = user.id").
-		Where("follows.followee_id = ?", userID).
-		Find(&followers).Error
-	return followers, err
-}
+//修改用户基础信息
