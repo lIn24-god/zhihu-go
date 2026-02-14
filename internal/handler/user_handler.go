@@ -65,3 +65,39 @@ func Login(c *gin.Context) {
 		},
 	})
 }
+
+// UpdateProfile 更新用户信息
+func UpdateProfile(c *gin.Context) {
+	// 获取已存储的 user_id（登录时已设置）
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// 类型断言，确保 userID 是 uint 类型
+	userIDuint, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var request dto.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+
+	updatedUser, err := service.UpdateProfile(db, userIDuint, &request)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Profile updated successfully",
+		"user":    updatedUser,
+	})
+}

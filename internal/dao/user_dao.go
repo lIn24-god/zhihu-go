@@ -20,4 +20,7 @@ func GetUserByUsername(db *gorm.DB, username string) (*model.User, error) {
 	return &user, err
 }
 
-//修改用户基础信息
+// UpdateProfile 修改用户基础信息
+func UpdateProfile(db *gorm.DB, userID uint, updates map[string]interface{}) error {
+	return db.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
+}
