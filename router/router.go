@@ -31,6 +31,7 @@ func SetUpRouter(r *gin.Engine, db *gorm.DB) *gin.Engine {
 		protected.GET("/user/followees", handler.GetFollowees)
 		protected.PATCH("/user/update", handler.UpdateProfile)
 		protected.POST("/post/create", handler.CreatePost)
+		protected.POST("/comment", handler.CreateComment)
 	}
 
 	return r
