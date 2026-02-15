@@ -8,7 +8,7 @@ type User struct {
 	ID        uint   `gorm:"primaryKey"`
 	Username  string `gorm:"unique; size:50"`
 	Email     string `gorm:"unique; default:null; size:100"`
-	Bio       string `gorm:"size:200"`
+	Bio       string `gorm:"size:200; default:null"`
 	Password  string
 	CreatedAt time.Time
 }
@@ -21,9 +21,9 @@ type Follow struct {
 }
 
 type Post struct {
-	ID        uint `gorm:"primaryKey"`
-	Title     string
-	Content   string `gorm:"type:text"`
+	ID        uint   `gorm:"primaryKey"`
+	Title     string `gorm:"size:100"`
+	Content   string `gorm:"type:longtext"`
 	AuthorID  uint
 	CreatedAt time.Time
 }

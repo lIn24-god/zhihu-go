@@ -1,13 +1,14 @@
 package dao
 
 import (
-	"gorm.io/gorm"
 	"zhihu-go/internal/model"
+
+	"gorm.io/gorm"
 )
 
 //创建文章
 
-func CreatePost(db *gorm.DB, post model.Post) error {
+func CreatePost(db *gorm.DB, post *model.Post) error {
 	return db.Create(post).Error
 }
 

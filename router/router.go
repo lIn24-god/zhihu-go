@@ -18,18 +18,19 @@ func SetUpRouter(r *gin.Engine, db *gorm.DB) *gin.Engine {
 	//公共路由
 	public := r.Group("/api")
 	{
-		public.POST("/login", handler.Login)
-		public.POST("/register", handler.Register)
+		public.POST("/user/login", handler.Login)
+		public.POST("/user/register", handler.Register)
 	}
 
 	//需要认证的路由
 	protected := r.Group("/api")
 	protected.Use(middleware.AuthMiddleware())
 	{
-		protected.POST("/follow", handler.Follow)
-		protected.GET("/followers", handler.GetFollowers)
-		protected.GET("/followees", handler.GetFollowees)
-		protected.PATCH("/update", handler.UpdateProfile)
+		protected.POST("/user/follow", handler.Follow)
+		protected.GET("/user/followers", handler.GetFollowers)
+		protected.GET("/user/followees", handler.GetFollowees)
+		protected.PATCH("/user/update", handler.UpdateProfile)
+		protected.POST("/post/create", handler.CreatePost)
 	}
 
 	return r
