@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"zhihu-go/internal/service"
 
@@ -8,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	"zhihu-go/internal/dto"
+	"zhihu-go/internal/errs"
 )
 
 //关注
@@ -35,8 +37,18 @@ func Follow(c *gin.Context) {
 	}
 
 	db := c.MustGet("db").(*gorm.DB)
-	if err := service.FollowUser(db, request.FolloweeID, followerIDUint); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to follow user"})
+	err := service.FollowUser(db, request.FolloweeID, followerIDUint)
+	if err != nil {
+		switch {
+		case errors.Is(err, errs.ErrUserNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"errors": err.Error()})
+		case errors.Is(err, errs.ErrAlreadyFollowed):
+			c.JSON(http.StatusConflict, gin.H{"errors": err.Error()})
+		case errors.Is(err, errs.ErrCannotFollowSelf):
+			c.JSON(http.StatusBadRequest, gin.H{"errors": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"errors": "failed to follow"})
+		}
 		return
 	}
 
