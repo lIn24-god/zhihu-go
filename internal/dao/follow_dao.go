@@ -16,6 +16,12 @@ func FollowUser(db *gorm.DB, followerID, followeeID uint) error {
 	return db.Create(&follow).Error
 }
 
+// UnfollowUser 取消关注用户
+func UnfollowUser(db *gorm.DB, followerID, followeeID uint) error {
+	return db.Where("follower_id = ? AND followee_id = ?", followerID, followeeID).
+		Delete(&model.Follow{}).Error
+}
+
 //获取用户的所有粉丝
 
 func GetFollowers(db *gorm.DB, userID uint) ([]model.User, error) {

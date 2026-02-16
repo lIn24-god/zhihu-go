@@ -27,6 +27,7 @@ func SetUpRouter(r *gin.Engine, db *gorm.DB) *gin.Engine {
 	protected.Use(middleware.AuthMiddleware())
 	{
 		protected.POST("/user/follow", handler.Follow)
+		protected.POST("/user/unfollow", handler.Unfollow)
 		protected.GET("/user/followers", handler.GetFollowers)
 		protected.GET("/user/followees", handler.GetFollowees)
 		protected.PATCH("/user/update", handler.UpdateProfile)

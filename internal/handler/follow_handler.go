@@ -43,6 +43,39 @@ func Follow(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Followed successfully"})
 }
 
+//取关
+
+func Unfollow(c *gin.Context) {
+	var request = dto.FollowRequest{}
+
+	// 获取已存储的 user_id（登录时已设置）
+	followerID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// 类型断言，确保 followerID 是 uint 类型
+	followerIDUint, ok := followerID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+	if err := service.UnfollowUser(db, request.FolloweeID, followerIDUint); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unfollow user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "unfollowed successfully"})
+}
+
 // 获取用户粉丝列表
 
 func GetFollowers(c *gin.Context) {

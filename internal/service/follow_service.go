@@ -14,6 +14,12 @@ func FollowUser(db *gorm.DB, followeeID, followerID uint) error {
 	return dao.FollowUser(db, followerID, followeeID)
 }
 
+//取关用户
+
+func UnfollowUser(db *gorm.DB, followeeID, followerID uint) error {
+	return dao.UnfollowUser(db, followerID, followeeID)
+}
+
 //获取用户的所有粉丝
 
 func GetFollowers(db *gorm.DB, userID uint) ([]dto.FollowUserInfo, error) {
