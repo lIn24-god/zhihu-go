@@ -7,6 +7,10 @@ type PostRequest struct {
 
 type PostResponse struct {
 	Title    string `json:"title"`
-	AuthorID string `json:"authorID"`
+	AuthorID uint   `json:"authorID"`
 	Content  string `json:"content"`
+}
+
+type GetPostRequest struct {
+	PostID uint `json:"post_id"`
 }

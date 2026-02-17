@@ -39,3 +39,22 @@ func CreatePost(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"massage": "Create post successfully"})
 }
+
+func GetPostByID(c *gin.Context) {
+	var postID dto.GetPostRequest
+
+	if err := c.ShouldBindJSON(&postID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+
+	result, err := service.GetPostByID(db, postID.PostID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get post"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": result})
+}

@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 
 	"zhihu-go/internal/dto"
-	"zhihu-go/internal/errs"
 )
 
 //关注
@@ -40,11 +39,11 @@ func Follow(c *gin.Context) {
 	err := service.FollowUser(db, request.FolloweeID, followerIDUint)
 	if err != nil {
 		switch {
-		case errors.Is(err, errs.ErrUserNotFound):
+		case errors.Is(err, service.ErrUserNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"errors": err.Error()})
-		case errors.Is(err, errs.ErrAlreadyFollowed):
+		case errors.Is(err, service.ErrAlreadyFollowed):
 			c.JSON(http.StatusConflict, gin.H{"errors": err.Error()})
-		case errors.Is(err, errs.ErrCannotFollowSelf):
+		case errors.Is(err, service.ErrCannotFollowSelf):
 			c.JSON(http.StatusBadRequest, gin.H{"errors": err.Error()})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"errors": "failed to follow"})

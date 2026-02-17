@@ -8,8 +8,6 @@ import (
 	"gorm.io/gorm"
 
 	"zhihu-go/internal/dao"
-
-	"zhihu-go/internal/errs"
 )
 
 //关注用户
@@ -17,14 +15,14 @@ import (
 func FollowUser(db *gorm.DB, followeeID, followerID uint) error {
 	//不能关注自己
 	if followerID == followeeID {
-		return errs.ErrCannotFollowSelf
+		return ErrCannotFollowSelf
 	}
 
 	//不能关注不存在的人
 	var user model.User
 	if err := db.First(&user, followeeID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errs.ErrUserNotFound
+			return ErrUserNotFound
 		}
 		return err //其他数据库错误
 	}
@@ -37,7 +35,7 @@ func FollowUser(db *gorm.DB, followeeID, followerID uint) error {
 		return err
 	}
 	if count > 0 {
-		return errs.ErrAlreadyFollowed
+		return ErrAlreadyFollowed
 	}
 
 	return dao.FollowUser(db, followerID, followeeID)

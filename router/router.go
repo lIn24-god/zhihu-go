@@ -20,6 +20,7 @@ func SetUpRouter(r *gin.Engine, db *gorm.DB) *gin.Engine {
 	{
 		public.POST("/user/login", handler.Login)
 		public.POST("/user/register", handler.Register)
+		public.GET("/post/get", handler.GetPostByID)
 	}
 
 	//需要认证的路由

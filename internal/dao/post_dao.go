@@ -12,14 +12,6 @@ func CreatePost(db *gorm.DB, post *model.Post) error {
 	return db.Create(post).Error
 }
 
-//获取所有文章
-
-func GetPosts(db *gorm.DB) ([]model.Post, error) {
-	var posts []model.Post
-	err := db.Find(&posts).Error
-	return posts, err
-}
-
 //获取文章详细信息
 
 func GetPostByID(db *gorm.DB, postID uint) (*model.Post, error) {
