@@ -40,17 +40,24 @@ func CreatePost(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"massage": "Create post successfully"})
 }
 
+// GetPostByID 获取用户文章
 func GetPostByID(c *gin.Context) {
-	var postID dto.GetPostRequest
 
-	if err := c.ShouldBindJSON(&postID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	uintUserID, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
 	db := c.MustGet("db").(*gorm.DB)
 
-	result, err := service.GetPostByID(db, postID.PostID)
+	result, err := service.GetPostByID(db, uintUserID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get post"})
 		return

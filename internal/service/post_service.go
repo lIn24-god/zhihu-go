@@ -24,8 +24,8 @@ func CreatePost(db *gorm.DB, rep *dto.PostRequest, authorID uint) error {
 }
 
 // GetPostByID 获取文章
-func GetPostByID(db *gorm.DB, postID uint) (*dto.PostResponse, error) {
-	post, err := dao.GetPostByID(db, postID)
+func GetPostByID(db *gorm.DB, authorID uint) (*dto.PostResponse, error) {
+	post, err := dao.GetPostByID(db, authorID)
 	if err != nil {
 		return nil, err
 	}

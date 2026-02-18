@@ -12,11 +12,11 @@ func CreatePost(db *gorm.DB, post *model.Post) error {
 	return db.Create(post).Error
 }
 
-//获取文章详细信息
+//获取用户文章
 
-func GetPostByID(db *gorm.DB, postID uint) (*model.Post, error) {
+func GetPostByID(db *gorm.DB, authorID uint) (*model.Post, error) {
 	var post model.Post
-	err := db.Where("id = ?", postID).First(&post).Error
+	err := db.Where("author_id = ?", authorID).First(&post).Error
 	return &post, err
 }
 

@@ -20,7 +20,6 @@ func SetUpRouter(r *gin.Engine, db *gorm.DB) *gin.Engine {
 	{
 		public.POST("/user/login", handler.Login)
 		public.POST("/user/register", handler.Register)
-		public.GET("/post/get", handler.GetPostByID)
 	}
 
 	//需要认证的路由
@@ -34,6 +33,7 @@ func SetUpRouter(r *gin.Engine, db *gorm.DB) *gin.Engine {
 		protected.PATCH("/user/update", handler.UpdateProfile)
 		protected.POST("/post/create", handler.CreatePost)
 		protected.POST("/comment", handler.CreateComment)
+		protected.GET("user/posts", handler.GetPostByID)
 	}
 
 	return r
