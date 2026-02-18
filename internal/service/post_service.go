@@ -38,3 +38,22 @@ func GetPostByID(db *gorm.DB, authorID uint) (*dto.PostResponse, error) {
 
 	return result, err
 }
+
+// SearchPosts 搜索文章
+func SearchPosts(db *gorm.DB, keyword string, page, pageSize int) ([]dto.PostResponse, int64, error) {
+	posts, total, err := dao.SearchPost(db, keyword, page, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	result := make([]dto.PostResponse, len(posts))
+	for i, p := range posts {
+		result[i] = dto.PostResponse{
+			Title:    p.Title,
+			AuthorID: p.AuthorID,
+			Content:  p.Content,
+		}
+	}
+
+	return result, total, nil
+}

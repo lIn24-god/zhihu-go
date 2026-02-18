@@ -7,6 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"strconv"
+
 	"zhihu-go/internal/dto"
 )
 
@@ -64,4 +66,40 @@ func GetPostByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": result})
+}
+
+// SearchPosts 处理文章搜索请求
+func SearchPosts(c *gin.Context) {
+	//获取查询参数
+	keyword := c.Query("q")
+	if keyword == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing keyword"})
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
+
+	//参数校验
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+
+	results, total, err := service.SearchPosts(db, keyword, page, pageSize)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to search posts"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":     results,
+		"page":     page,
+		"pageSize": pageSize,
+		"total":    total,
+	})
 }
