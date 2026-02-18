@@ -14,10 +14,10 @@ func CreatePost(db *gorm.DB, post *model.Post) error {
 
 //获取用户文章
 
-func GetPostByID(db *gorm.DB, authorID uint) (*model.Post, error) {
-	var post model.Post
-	err := db.Where("author_id = ?", authorID).First(&post).Error
-	return &post, err
+func GetPost(db *gorm.DB, authorID uint, status string) ([]model.Post, error) {
+	var posts []model.Post
+	err := db.Where("author_id = ? AND status = ?", authorID, status).Find(&posts).Error
+	return posts, err
 }
 
 // SearchPost 使用全文索引搜索文章，并返回文章列表和总数

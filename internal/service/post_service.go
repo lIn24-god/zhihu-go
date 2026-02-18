@@ -12,10 +12,16 @@ import (
 
 // CreatePost 创建文章
 func CreatePost(db *gorm.DB, rep *dto.PostRequest, authorID uint) error {
+	//如果前端未传入status，则默认为draft
+	if rep.Status != "draft" && rep.Status != "published" {
+		rep.Status = "draft"
+	}
+
 	post := &model.Post{
 		Title:    rep.Title,
 		Content:  rep.Content,
 		AuthorID: authorID,
+		Status:   rep.Status,
 	}
 
 	err := dao.CreatePost(db, post)
@@ -23,17 +29,21 @@ func CreatePost(db *gorm.DB, rep *dto.PostRequest, authorID uint) error {
 	return err
 }
 
-// GetPostByID 获取文章
-func GetPostByID(db *gorm.DB, authorID uint) (*dto.PostResponse, error) {
-	post, err := dao.GetPostByID(db, authorID)
+// GetPost 获取文章
+func GetPost(db *gorm.DB, authorID uint, status string) ([]dto.PostResponse, error) {
+	posts, err := dao.GetPost(db, authorID, status)
 	if err != nil {
 		return nil, err
 	}
 
-	result := &dto.PostResponse{
-		Title:    post.Title,
-		AuthorID: post.AuthorID,
-		Content:  post.Content,
+	var result []dto.PostResponse
+	for _, f := range posts {
+		result = append(result, dto.PostResponse{
+			Title:    f.Title,
+			AuthorID: f.AuthorID,
+			Content:  f.Content,
+			Status:   f.Status,
+		})
 	}
 
 	return result, err

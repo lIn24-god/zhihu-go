@@ -20,14 +20,6 @@ type Follow struct {
 	CreatedAt  time.Time
 }
 
-type Post struct {
-	ID        uint   `gorm:"primaryKey"`
-	Title     string `gorm:"size:100"`
-	Content   string `gorm:"type:longtext"`
-	AuthorID  uint
-	CreatedAt time.Time
-}
-
 type Comment struct {
 	ID        uint `gorm:"primaryKey"`
 	PostID    uint

@@ -42,8 +42,8 @@ func CreatePost(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"massage": "Create post successfully"})
 }
 
-// GetPostByID 获取用户文章
-func GetPostByID(c *gin.Context) {
+// GetDraft 获取用户草稿
+func GetDraft(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -59,9 +59,35 @@ func GetPostByID(c *gin.Context) {
 
 	db := c.MustGet("db").(*gorm.DB)
 
-	result, err := service.GetPostByID(db, uintUserID)
+	result, err := service.GetPost(db, uintUserID, "draft")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get post"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get draft"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": result})
+}
+
+// GetPublishedPost 获取用户已发布文章
+func GetPublishedPost(c *gin.Context) {
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	uintUserID, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+
+	result, err := service.GetPost(db, uintUserID, "published")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get published post"})
 		return
 	}
 
