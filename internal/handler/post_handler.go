@@ -129,3 +129,140 @@ func SearchPosts(c *gin.Context) {
 		"total":    total,
 	})
 }
+
+// DeletePost 删除文章
+func DeletePost(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	uintUserID, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+
+	//从url中获取postID
+	postIDStr := c.Param("id")
+	postID, err := strconv.ParseUint(postIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+		return
+	}
+
+	if err := service.SoftDeletePost(db, uint(postID), uintUserID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"errors": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "delete successfully"})
+}
+
+// RestorePost 恢复文章
+func RestorePost(c *gin.Context) {
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	uintUserID, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+
+	//从url中获取postID
+	postIDStr := c.Param("id")
+	postID, err := strconv.ParseUint(postIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+		return
+	}
+
+	if err := service.RestorePost(db, uint(postID), uintUserID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "restore successfully"})
+}
+
+// GetTrash 获取用户回收站中的文章
+func GetTrash(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	uintUserID, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+
+	trash, err := service.GetUserTrash(db, uintUserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get trash"})
+		return
+	}
+
+	var result []dto.PostResponse
+	for _, f := range trash {
+		result = append(result, dto.PostResponse{
+			Title:    f.Title,
+			AuthorID: f.AuthorID,
+			Content:  f.Content,
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"trash": result})
+}
+
+// UpdatePost 修改文章信息
+func UpdatePost(c *gin.Context) {
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	uintUserID, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+
+	//从url中获取postID
+	postIDStr := c.Param("id")
+	postID, err := strconv.ParseUint(postIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+		return
+	}
+
+	var req dto.UpdatePostRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := service.UpdatePost(db, uintUserID, uint(postID), req); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "update successfully"})
+}

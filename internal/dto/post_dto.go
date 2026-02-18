@@ -12,3 +12,9 @@ type PostResponse struct {
 	Content  string `json:"content"`
 	Status   string `json:"status"`
 }
+
+type UpdatePostRequest struct {
+	Title   string `json:"title"`
+	Content string `json:"content"`
+	Status  string `json:"status"`
+}

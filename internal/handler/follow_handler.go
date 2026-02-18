@@ -99,7 +99,7 @@ func GetFollowers(c *gin.Context) {
 	}
 
 	// 类型断言，确保 userID 是 uint 类型
-	userIDuint, ok := userID.(uint)
+	userIDUint, ok := userID.(uint)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
 		return
@@ -107,7 +107,7 @@ func GetFollowers(c *gin.Context) {
 
 	db := c.MustGet("db").(*gorm.DB)
 
-	followers, err := service.GetFollowers(db, userIDuint)
+	followers, err := service.GetFollowers(db, userIDUint)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to get followers"})
 		return
@@ -130,7 +130,7 @@ func GetFollowees(c *gin.Context) {
 	}
 
 	// 类型断言，确保 userID 是 uint 类型
-	userIDuint, ok := userID.(uint)
+	userIDUint, ok := userID.(uint)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
 		return
@@ -138,7 +138,7 @@ func GetFollowees(c *gin.Context) {
 
 	db := c.MustGet("db").(*gorm.DB)
 
-	followees, err := service.GetFollowees(db, userIDuint)
+	followees, err := service.GetFollowees(db, userIDUint)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get followees"})
 		return

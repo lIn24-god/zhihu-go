@@ -67,3 +67,70 @@ func SearchPosts(db *gorm.DB, keyword string, page, pageSize int) ([]dto.PostRes
 
 	return result, total, nil
 }
+
+// SoftDeletePost 软删除文章
+func SoftDeletePost(db *gorm.DB, postID, userID uint) error {
+
+	//检查文章是否属于该用户
+	post, err := dao.GetPostByID(db.Unscoped(), postID)
+	if err != nil {
+		return err
+	}
+	if post.AuthorID != userID {
+		return ErrUnauthorized
+	}
+
+	return dao.SoftDeletePost(db, postID)
+}
+
+// RestorePost 恢复已删除的文章
+func RestorePost(db *gorm.DB, postID, userID uint) error {
+
+	//检查文章是否属于该用户
+	post, err := dao.GetPostByID(db.Unscoped(), postID)
+	if err != nil {
+		return err
+	}
+	if post.AuthorID != userID {
+		return ErrUnauthorized
+	}
+
+	return dao.RestorePost(db, postID)
+}
+
+// GetUserTrash 获取用户回收站里的文章
+func GetUserTrash(db *gorm.DB, userID uint) ([]model.Post, error) {
+	posts, err := dao.GetUserDeletedPosts(db, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return posts, err
+}
+
+// UpdatePost 更新文章
+func UpdatePost(db *gorm.DB, userID, postID uint, req dto.UpdatePostRequest) error {
+	post, err := dao.GetPostByID(db, postID)
+	if err != nil {
+		return err
+	}
+
+	if userID != post.AuthorID {
+		return ErrUnauthorized
+	}
+
+	//只更新非空字段
+	if req.Status != "" {
+		post.Status = req.Status
+	}
+
+	if req.Title != "" {
+		post.Title = req.Title
+	}
+
+	if req.Content != "" {
+		post.Content = req.Content
+	}
+
+	return dao.UpdatePost(db, post)
+}

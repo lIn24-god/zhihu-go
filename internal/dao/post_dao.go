@@ -20,6 +20,13 @@ func GetPost(db *gorm.DB, authorID uint, status string) ([]model.Post, error) {
 	return posts, err
 }
 
+// GetPostByID 通过postID获取文章
+func GetPostByID(db *gorm.DB, postID uint) (*model.Post, error) {
+	var post model.Post
+	err := db.Where("id = ?", postID).First(&post).Error
+	return &post, err
+}
+
 // SearchPost 使用全文索引搜索文章，并返回文章列表和总数
 func SearchPost(db *gorm.DB, keyword string, page, pageSize int) ([]model.Post, int64, error) {
 	var posts []model.Post
@@ -45,4 +52,27 @@ func SearchPost(db *gorm.DB, keyword string, page, pageSize int) ([]model.Post, 
 
 	return posts, total, nil
 
+}
+
+// SoftDeletePost 软删除文章
+func SoftDeletePost(db *gorm.DB, postID uint) error {
+	return db.Delete(&model.Post{}, postID).Error
+}
+
+// RestorePost 恢复软删除的文章
+func RestorePost(db *gorm.DB, postID uint) error {
+	return db.Model(&model.Post{}).Unscoped().Where("id = ?", postID).
+		Update("deleted_at", nil).Error
+}
+
+// GetUserDeletedPosts 获取用户已删除的文章
+func GetUserDeletedPosts(db *gorm.DB, userID uint) ([]model.Post, error) {
+	var posts []model.Post
+	err := db.Unscoped().Where("author_id = ? AND deleted_at IS NOT NULL", userID).Find(&posts).Error
+	return posts, err
+}
+
+// UpdatePost 更新文章信息
+func UpdatePost(db *gorm.DB, post *model.Post) error {
+	return db.Save(&post).Error
 }
