@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"zhihu-go/config"
 	"zhihu-go/internal/model"
+	"zhihu-go/internal/service"
 	"zhihu-go/router"
 
 	"github.com/gin-gonic/gin"
@@ -30,6 +32,15 @@ func main() {
 	if err := db.AutoMigrate(&model.User{}, &model.Post{}, &model.Follow{}, &model.Comment{}, &model.Like{}); err != nil {
 		fmt.Println("Failed to run migrate:", err)
 		return
+	}
+
+	// 使用配置中的管理员信息
+	adminUser := config.Config.Admin.Username
+	adminPass := config.Config.Admin.Password
+
+	// 调用初始化管理员
+	if err := service.InitAdmin(db, adminUser, adminPass); err != nil {
+		log.Fatalf("初始化管理员失败: %v", err)
 	}
 
 	//初始化路由并传递数据库连接

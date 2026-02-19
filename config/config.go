@@ -11,6 +11,7 @@ var Config *AppConfig
 type AppConfig struct {
 	Mysql MysqlConfig
 	Redis RedisConfig
+	Admin AdminConfig
 }
 
 type MysqlConfig struct {
@@ -23,6 +24,13 @@ type RedisConfig struct {
 	Addr     string
 	Password string
 	DB       int
+}
+
+//新增管理员配置结构体
+
+type AdminConfig struct {
+	Username string
+	Password string
 }
 
 func Init() {

@@ -12,8 +12,33 @@ import (
 	"gorm.io/gorm"
 )
 
-//用户注册
+// InitAdmin 初始化管理员账号
+func InitAdmin(db *gorm.DB, adminUsername, adminPassword string) error {
+	//检查是否有管理员
+	count, err := dao.CountAdmin(db)
+	if err != nil {
+		return err
+	}
 
+	if count > 0 {
+		//已有管理员，不用创建
+		return nil
+	}
+	// 加密密码
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	admin := &model.User{
+		Username: adminUsername,
+		Password: string(hashedPassword),
+		IsAdmin:  true,
+	}
+	return dao.CreateUser(db, admin)
+}
+
+// RegisterUser 用户注册
 func RegisterUser(db *gorm.DB, username, password string) (*model.User, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -32,8 +57,7 @@ func RegisterUser(db *gorm.DB, username, password string) (*model.User, error) {
 	return user, err
 }
 
-//用户登录
-
+// LoginUser 用户登录
 func LoginUser(db *gorm.DB, username, password string) (*model.User, error) {
 	user, err := dao.GetUserByUsername(db, username)
 	if err != nil {
@@ -47,8 +71,7 @@ func LoginUser(db *gorm.DB, username, password string) (*model.User, error) {
 	return user, err
 }
 
-//获取用户最新信息
-
+// GetUserProfile 获取用户最新信息
 func GetUserProfile(db *gorm.DB, userID uint) (*dto.UpdateProfileResponse, error) {
 	var user model.User
 	if err := db.First(&user, userID).Error; err != nil {
@@ -62,8 +85,7 @@ func GetUserProfile(db *gorm.DB, userID uint) (*dto.UpdateProfileResponse, error
 	}, nil
 }
 
-//用户信息修改
-
+// UpdateProfile 用户信息修改
 func UpdateProfile(db *gorm.DB, userID uint, rep *dto.UpdateProfileRequest) (*dto.UpdateProfileResponse, error) {
 	updates := make(map[string]interface{})
 

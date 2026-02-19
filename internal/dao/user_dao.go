@@ -39,3 +39,10 @@ func UpdateUserMutedUntil(db *gorm.DB, userID uint, mutedUntil *time.Time) error
 	return db.Model(&model.User{}).Where("id = ?", userID).
 		Update("muted_until", mutedUntil).Error
 }
+
+// CountAdmin 统计管理员数量
+func CountAdmin(db *gorm.DB) (int64, error) {
+	var count int64
+	err := db.Model(&model.User{}).Where("is_admin = ?", true).Count(&count).Error
+	return count, err
+}
