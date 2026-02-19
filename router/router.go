@@ -20,7 +20,7 @@ func SetUpRouter(r *gin.Engine, db *gorm.DB) *gin.Engine {
 	{
 		public.POST("/user/login", handler.Login)
 		public.POST("/user/register", handler.Register)
-		public.GET("posts/search", handler.SearchPosts)
+		public.GET("/posts/search", handler.SearchPosts)
 	}
 
 	//需要认证的路由
@@ -40,6 +40,13 @@ func SetUpRouter(r *gin.Engine, db *gorm.DB) *gin.Engine {
 		protected.POST("/post/:id/restore", handler.RestorePost)
 		protected.GET("/post/trash", handler.GetTrash)
 		protected.PATCH("/post/:id/update", handler.UpdatePost)
+
+		//管理员路由
+		admin := protected.Group("/admin")
+		admin.Use(middleware.AdminMiddleware())
+		{
+			admin.POST("/mute", handler.MuteUser)
+		}
 	}
 
 	return r

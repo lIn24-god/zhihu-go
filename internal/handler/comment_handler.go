@@ -34,6 +34,12 @@ func CreateComment(c *gin.Context) {
 
 	db := c.MustGet("db").(*gorm.DB)
 
+	//检查是否被禁言
+	if err := service.CheckMuted(db, uintUserID); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
 	response, err := service.CreateComment(db, &request, uintUserID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create comment"})

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"zhihu-go/internal/dao"
 	"zhihu-go/internal/service"
 	"zhihu-go/internal/utils"
 
@@ -76,7 +77,7 @@ func UpdateProfile(c *gin.Context) {
 	}
 
 	// 类型断言，确保 userID 是 uint 类型
-	userIDuint, ok := userID.(uint)
+	uintUserID, ok := userID.(uint)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
 		return
@@ -90,7 +91,7 @@ func UpdateProfile(c *gin.Context) {
 
 	db := c.MustGet("db").(*gorm.DB)
 
-	updatedUser, err := service.UpdateProfile(db, userIDuint, &request)
+	updatedUser, err := service.UpdateProfile(db, uintUserID, &request)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -100,4 +101,34 @@ func UpdateProfile(c *gin.Context) {
 		"message": "Profile updated successfully",
 		"user":    updatedUser,
 	})
+}
+
+// MuteUser 禁言/解禁用户
+func MuteUser(c *gin.Context) {
+	var req dto.MuteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	db := c.MustGet("db").(*gorm.DB)
+	//检查目标用户是否存在
+	target, err := dao.GetUserByID(db, req.UserID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		return
+	}
+
+	//检查目标是否为管理员
+	if target.IsAdmin {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no admin"})
+		return
+	}
+
+	if err := service.MuteUser(db, target.ID, req.Hours); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mute"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "mute successfully"})
 }

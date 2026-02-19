@@ -2,6 +2,8 @@ package service
 
 import (
 	"errors"
+	"fmt"
+	"time"
 	"zhihu-go/internal/dao"
 	"zhihu-go/internal/dto"
 	"zhihu-go/internal/model"
@@ -112,4 +114,32 @@ func UpdateProfile(db *gorm.DB, userID uint, rep *dto.UpdateProfileRequest) (*dt
 
 	//返回更新后的用户信息
 	return GetUserProfile(db, userID)
+}
+
+// MuteUser 禁言或解禁用户
+// hours 大于零表示禁言hours小时， 否则则为解除禁言
+func MuteUser(db *gorm.DB, targetUserID uint, hours int) error {
+	var mutedUntil *time.Time
+	if hours > 0 {
+		h := time.Now().Add(time.Duration(hours) * time.Hour)
+		mutedUntil = &h
+	} else {
+		mutedUntil = nil
+	}
+
+	return dao.UpdateUserMutedUntil(db, targetUserID, mutedUntil)
+}
+
+// CheckMuted 检查用户是否被禁言
+func CheckMuted(db *gorm.DB, userID uint) error {
+	user, err := dao.GetUserByID(db, userID)
+	if err != nil {
+		return err
+	}
+
+	if user.MutedUntil != nil && user.MutedUntil.After(time.Now()) {
+		return fmt.Errorf("用户已被禁言至 %s", user.MutedUntil.Format("2006-01-02 15:04:05"))
+	}
+
+	return nil
 }

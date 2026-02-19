@@ -21,3 +21,9 @@ type UpdateProfileResponse struct {
 	Email    string `json:"email"`
 	Bio      string `json:"bio"`
 }
+
+// MuteRequest 禁言请求
+type MuteRequest struct {
+	UserID uint `json:"user_id" binding:"required"`
+	Hours  int  `json:"hours"` // 禁言时长，小于零则为解除禁言
+}
