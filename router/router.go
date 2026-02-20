@@ -5,13 +5,15 @@ import (
 	"zhihu-go/internal/middleware"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
-func SetUpRouter(r *gin.Engine, db *gorm.DB) *gin.Engine {
+func SetUpRouter(r *gin.Engine, db *gorm.DB, rdb *redis.Client) *gin.Engine {
 	//设置中间件
 	r.Use(func(c *gin.Context) {
 		c.Set("db", db)
+		c.Set("rdb", rdb)
 		c.Next()
 	})
 
@@ -40,6 +42,7 @@ func SetUpRouter(r *gin.Engine, db *gorm.DB) *gin.Engine {
 		protected.POST("/post/:id/restore", handler.RestorePost)
 		protected.GET("/post/trash", handler.GetTrash)
 		protected.PATCH("/post/:id/update", handler.UpdatePost)
+		protected.POST("/like", handler.CreateLike)
 
 		//管理员路由
 		admin := protected.Group("/admin")

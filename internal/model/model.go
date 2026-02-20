@@ -25,23 +25,20 @@ type Post struct {
 }
 
 type Follow struct {
-	ID         uint `gorm:"primaryKey"`
+	gorm.Model
 	FolloweeID uint
 	FollowerID uint
-	CreatedAt  time.Time
 }
 
 type Comment struct {
-	ID        uint `gorm:"primaryKey"`
-	PostID    uint
-	AuthorID  uint
-	Content   string `gorm:"type:text"`
-	CreatedAt time.Time
+	gorm.Model
+	PostID   uint
+	AuthorID uint
+	Content  string `gorm:"type:text"`
 }
 
 type Like struct {
-	ID        uint `gorm:"primaryKey"`
-	PostID    uint
-	UserID    uint
-	CreatedAt time.Time
+	gorm.Model
+	PostID uint
+	UserID uint
 }

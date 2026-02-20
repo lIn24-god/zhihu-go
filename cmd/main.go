@@ -11,6 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -21,12 +23,23 @@ func main() {
 	mysqlConfig := config.Config.Mysql
 	dsn := mysqlConfig.DSN
 
+	//获取redis配置
+	redisConfig := config.Config.Redis
+	addr := redisConfig.Addr
+	password := redisConfig.Password
+	db1 := redisConfig.DB
+
 	//连接到数据库
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		fmt.Println("failed to connect database:", err)
 		return
 	}
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Password: password,
+		DB:       db1,
+	})
 
 	//自动迁移
 	if err := db.AutoMigrate(&model.User{}, &model.Post{}, &model.Follow{}, &model.Comment{}, &model.Like{}); err != nil {
@@ -44,7 +57,7 @@ func main() {
 	}
 
 	//初始化路由并传递数据库连接
-	r := router.SetUpRouter(gin.Default(), db)
+	r := router.SetUpRouter(gin.Default(), db, rdb)
 
 	//启动gin服务
 	r.Run(":8080")
