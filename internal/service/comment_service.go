@@ -2,7 +2,9 @@ package service
 
 import (
 	"zhihu-go/internal/model"
+	"zhihu-go/internal/utils"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
 	"zhihu-go/internal/dto"
@@ -11,16 +13,25 @@ import (
 )
 
 // CreateComment 创建评论
-func CreateComment(db *gorm.DB, rep *dto.CommentRequest, authorID uint) (*dto.CommentResponse, error) {
+func CreateComment(db *gorm.DB, rdb *redis.Client, req *dto.CommentRequest, authorID uint) (*dto.CommentResponse, error) {
 	comment := &model.Comment{
-		PostID:   rep.PostID,
+		PostID:   req.PostID,
 		AuthorID: authorID,
-		Content:  rep.Content,
+		Content:  req.Content,
 	}
 
-	err := dao.CreateComment(db, comment)
+	// 防刷机制
+	allowed, err := utils.Allow(rdb, "评论", authorID, 5, 60)
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
+		return nil, ErrTooFrequent
+	}
 
-	response := &dto.CommentResponse{Content: rep.Content}
+	err1 := dao.CreateComment(db, comment)
 
-	return response, err
+	response := &dto.CommentResponse{Content: req.Content}
+
+	return response, err1
 }

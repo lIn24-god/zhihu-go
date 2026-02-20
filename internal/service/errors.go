@@ -9,4 +9,5 @@ var (
 	ErrAlreadyFollowed  = errors.New("already followed")
 	ErrCannotFollowSelf = errors.New("cannot follow yourself")
 	ErrUnauthorized     = errors.New("unauthorized")
+	ErrTooFrequent      = errors.New("too frequent")
 )

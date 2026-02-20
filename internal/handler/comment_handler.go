@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"zhihu-go/internal/service"
 
 	"zhihu-go/internal/dto"
 
 	"net/http"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
@@ -33,6 +35,7 @@ func CreateComment(c *gin.Context) {
 	}
 
 	db := c.MustGet("db").(*gorm.DB)
+	rdb := c.MustGet("rdb").(*redis.Client)
 
 	//检查是否被禁言
 	if err := service.CheckMuted(db, uintUserID); err != nil {
@@ -40,9 +43,14 @@ func CreateComment(c *gin.Context) {
 		return
 	}
 
-	response, err := service.CreateComment(db, &request, uintUserID)
+	response, err := service.CreateComment(db, rdb, &request, uintUserID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create comment"})
+		switch {
+		case errors.Is(err, service.ErrTooFrequent):
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create comment"})
+		}
 		return
 	}
 

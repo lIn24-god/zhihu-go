@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"zhihu-go/internal/service"
 
 	"zhihu-go/internal/dto"
 
 	"net/http"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
@@ -33,9 +35,16 @@ func CreateLike(c *gin.Context) {
 	}
 
 	db := c.MustGet("db").(*gorm.DB)
+	rdb := c.MustGet("rdb").(*redis.Client)
 
-	if err := service.CreateLike(db, request, uintUserID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	//防刷机制
+	if err := service.CreateLike(db, rdb, request, uintUserID); err != nil {
+		switch {
+		case errors.Is(err, service.ErrTooFrequent):
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to like"})
+		}
 		return
 	}
 
