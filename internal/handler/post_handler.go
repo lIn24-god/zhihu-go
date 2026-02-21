@@ -34,11 +34,11 @@ func CreatePost(c *gin.Context) {
 
 	db := c.MustGet("db").(*gorm.DB)
 
-	//检查是否被禁言
+	/*//检查是否被禁言
 	if err := service.CheckMuted(db, uintUserID); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
-	}
+	}*/
 
 	if err := service.CreatePost(db, &request, uintUserID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create a post"})

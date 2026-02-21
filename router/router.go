@@ -5,35 +5,38 @@ import (
 	"zhihu-go/internal/middleware"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
 )
 
-func SetUpRouter(r *gin.Engine, db *gorm.DB, rdb *redis.Client) *gin.Engine {
-	//设置中间件
-	r.Use(func(c *gin.Context) {
-		c.Set("db", db)
-		c.Set("rdb", rdb)
-		c.Next()
-	})
+// Router 结构体，持有所有 handler
+type Router struct {
+	userHandler *handler.UserHandler
+}
 
+// NewRouter 构造函数
+func NewRouter(userHandler *handler.UserHandler) *Router {
+	return &Router{
+		userHandler: userHandler,
+	}
+}
+
+func (r *Router) SetUp(engine *gin.Engine) {
 	//公共路由
-	public := r.Group("/api")
+	public := engine.Group("/api")
 	{
-		public.POST("/user/login", handler.Login)
-		public.POST("/user/register", handler.Register)
+		public.POST("/user/login", r.userHandler.Login)
+		public.POST("/user/register", r.userHandler.Register)
 		public.GET("/posts/search", handler.SearchPosts)
 	}
 
 	//需要认证的路由
-	protected := r.Group("/api")
+	protected := engine.Group("/api")
 	protected.Use(middleware.AuthMiddleware())
 	{
 		protected.POST("/user/follow", handler.Follow)
 		protected.POST("/user/unfollow", handler.Unfollow)
 		protected.GET("/user/followers", handler.GetFollowers)
 		protected.GET("/user/followees", handler.GetFollowees)
-		protected.PATCH("/user/update", handler.UpdateProfile)
+		protected.PATCH("/user/update", r.userHandler.UpdateProfile)
 		protected.POST("/post/create", handler.CreatePost)
 		protected.POST("/comment", handler.CreateComment)
 		protected.GET("/post/draft", handler.GetDraft)
@@ -45,12 +48,10 @@ func SetUpRouter(r *gin.Engine, db *gorm.DB, rdb *redis.Client) *gin.Engine {
 		protected.POST("/like", handler.CreateLike)
 
 		//管理员路由
-		admin := protected.Group("/admin")
+		/*admin := protected.Group("/admin")
 		admin.Use(middleware.AdminMiddleware())
 		{
-			admin.POST("/mute", handler.MuteUser)
-		}
+			admin.POST("/mute", r.userHandler.MuteUser)
+		}*/
 	}
-
-	return r
 }
