@@ -3,24 +3,44 @@ package service
 import (
 	"errors"
 	"zhihu-go/internal/dto"
-	"zhihu-go/internal/model"
 
 	"gorm.io/gorm"
 
 	"zhihu-go/internal/dao"
 )
 
-//关注用户
+// FollowService 定义关注数据访问接口
+type FollowService interface {
+	FollowUser(followeeID, followerID uint) error
+	UnfollowUser(followeeID, followerID uint) error
+	GetFollowers(userID uint) ([]dto.FollowUserInfo, error)
+	GetFollowees(userID uint) ([]dto.FollowUserInfo, error)
+}
 
-func FollowUser(db *gorm.DB, followeeID, followerID uint) error {
+// 定义结构体
+type followService struct {
+	followDAO dao.FollowDAO
+	userDAO   dao.UserDAO
+}
+
+// NewFollowService 构造函数
+func NewFollowService(followDAO dao.FollowDAO, userDAO dao.UserDAO) FollowService {
+	return &followService{
+		followDAO: followDAO,
+		userDAO:   userDAO,
+	}
+}
+
+// FollowUser 关注用户
+func (s *followService) FollowUser(followeeID, followerID uint) error {
 	//不能关注自己
 	if followerID == followeeID {
 		return ErrCannotFollowSelf
 	}
 
 	//不能关注不存在的人
-	var user model.User
-	if err := db.First(&user, followeeID).Error; err != nil {
+	_, err := s.userDAO.GetUserByID(followeeID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
 		}
@@ -28,29 +48,22 @@ func FollowUser(db *gorm.DB, followeeID, followerID uint) error {
 	}
 
 	//不能关注已关注的人
-	var count int64
-	if err := db.Model(&model.Follow{}).
-		Where("followee_id = ? AND follower_id = ?", followeeID, followerID).
-		Count(&count).Error; err != nil {
-		return err
-	}
-	if count > 0 {
+	exists, err := s.followDAO.CheckFollowExists(followeeID, followerID)
+	if exists {
 		return ErrAlreadyFollowed
 	}
 
-	return dao.FollowUser(db, followerID, followeeID)
+	return s.followDAO.FollowUser(followerID, followeeID)
 }
 
-//取关用户
-
-func UnfollowUser(db *gorm.DB, followeeID, followerID uint) error {
-	return dao.UnfollowUser(db, followerID, followeeID)
+// UnfollowUser 取关用户
+func (s *followService) UnfollowUser(followeeID, followerID uint) error {
+	return s.followDAO.UnfollowUser(followerID, followeeID)
 }
 
-//获取用户的所有粉丝
-
-func GetFollowers(db *gorm.DB, userID uint) ([]dto.FollowUserInfo, error) {
-	followers, err := dao.GetFollowers(db, userID)
+// GetFollowers 获取用户的所有粉丝
+func (s *followService) GetFollowers(userID uint) ([]dto.FollowUserInfo, error) {
+	followers, err := s.followDAO.GetFollowers(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -66,10 +79,9 @@ func GetFollowers(db *gorm.DB, userID uint) ([]dto.FollowUserInfo, error) {
 	return result, err
 }
 
-//获取用户的所有关注
-
-func GetFollowees(db *gorm.DB, userID uint) ([]dto.FollowUserInfo, error) {
-	followees, err := dao.GetFollowees(db, userID)
+// GetFollowees 获取用户的所有关注
+func (s *followService) GetFollowees(userID uint) ([]dto.FollowUserInfo, error) {
+	followees, err := s.followDAO.GetFollowees(userID)
 	if err != nil {
 		return nil, err
 	}

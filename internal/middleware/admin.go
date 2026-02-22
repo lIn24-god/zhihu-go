@@ -1,11 +1,12 @@
 package middleware
 
+/*
 import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
 	"net/http"
-	"zhihu-go/internal/dao"
+	"zhihu-go/internal/service"
 )
 
 // AdminMiddleware 检查当前用户是否为管理员
@@ -39,4 +40,4 @@ func AdminMiddleware() gin.HandlerFunc {
 		}
 		c.Next()
 	}
-}
+}*/

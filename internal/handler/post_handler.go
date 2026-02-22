@@ -4,15 +4,25 @@ import (
 	"net/http"
 	"zhihu-go/internal/service"
 
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
-
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 
 	"zhihu-go/internal/dto"
 )
 
-func CreatePost(c *gin.Context) {
+// PostHandler 结构体定义
+type PostHandler struct {
+	postService service.PostService
+}
+
+// NewPostHandler 构造函数
+func NewPostHandler(postService service.PostService) *PostHandler {
+	return &PostHandler{postService: postService}
+}
+
+// CreatePost 文章发布
+func (h *PostHandler) CreatePost(c *gin.Context) {
 	var request dto.PostRequest
 
 	userID, exists := c.Get("user_id")
@@ -32,15 +42,13 @@ func CreatePost(c *gin.Context) {
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-
-	//检查是否被禁言
+	/*//检查是否被禁言
 	if err := service.CheckMuted(db, uintUserID); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
-	}
+	}*/
 
-	if err := service.CreatePost(db, &request, uintUserID); err != nil {
+	if err := h.postService.CreatePost(&request, uintUserID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create a post"})
 		return
 	}
@@ -49,7 +57,7 @@ func CreatePost(c *gin.Context) {
 }
 
 // GetDraft 获取用户草稿
-func GetDraft(c *gin.Context) {
+func (h *PostHandler) GetDraft(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -63,9 +71,7 @@ func GetDraft(c *gin.Context) {
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-
-	result, err := service.GetPost(db, uintUserID, "draft")
+	result, err := h.postService.GetPost(uintUserID, "draft")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get draft"})
 		return
@@ -75,7 +81,7 @@ func GetDraft(c *gin.Context) {
 }
 
 // GetPublishedPost 获取用户已发布文章
-func GetPublishedPost(c *gin.Context) {
+func (h *PostHandler) GetPublishedPost(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -89,9 +95,7 @@ func GetPublishedPost(c *gin.Context) {
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-
-	result, err := service.GetPost(db, uintUserID, "published")
+	result, err := h.postService.GetPost(uintUserID, "published")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get published post"})
 		return
@@ -101,7 +105,7 @@ func GetPublishedPost(c *gin.Context) {
 }
 
 // SearchPosts 处理文章搜索请求
-func SearchPosts(c *gin.Context) {
+func (h *PostHandler) SearchPosts(c *gin.Context) {
 	//获取查询参数
 	keyword := c.Query("q")
 	if keyword == "" {
@@ -120,9 +124,7 @@ func SearchPosts(c *gin.Context) {
 		pageSize = 10
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-
-	results, total, err := service.SearchPosts(db, keyword, page, pageSize)
+	results, total, err := h.postService.SearchPosts(keyword, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to search posts"})
 		return
@@ -137,7 +139,7 @@ func SearchPosts(c *gin.Context) {
 }
 
 // DeletePost 删除文章
-func DeletePost(c *gin.Context) {
+func (h *PostHandler) DeletePost(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -150,8 +152,6 @@ func DeletePost(c *gin.Context) {
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-
 	//从url中获取postID
 	postIDStr := c.Param("id")
 	postID, err := strconv.ParseUint(postIDStr, 10, 64)
@@ -160,7 +160,7 @@ func DeletePost(c *gin.Context) {
 		return
 	}
 
-	if err := service.SoftDeletePost(db, uint(postID), uintUserID); err != nil {
+	if err := h.postService.SoftDeletePost(uint(postID), uintUserID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"errors": err.Error()})
 		return
 	}
@@ -169,7 +169,7 @@ func DeletePost(c *gin.Context) {
 }
 
 // RestorePost 恢复文章
-func RestorePost(c *gin.Context) {
+func (h *PostHandler) RestorePost(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -182,8 +182,6 @@ func RestorePost(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
 		return
 	}
-
-	db := c.MustGet("db").(*gorm.DB)
 
 	//从url中获取postID
 	postIDStr := c.Param("id")
@@ -193,7 +191,7 @@ func RestorePost(c *gin.Context) {
 		return
 	}
 
-	if err := service.RestorePost(db, uint(postID), uintUserID); err != nil {
+	if err := h.postService.RestorePost(uint(postID), uintUserID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -202,7 +200,7 @@ func RestorePost(c *gin.Context) {
 }
 
 // GetTrash 获取用户回收站中的文章
-func GetTrash(c *gin.Context) {
+func (h *PostHandler) GetTrash(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -215,9 +213,7 @@ func GetTrash(c *gin.Context) {
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-
-	trash, err := service.GetUserTrash(db, uintUserID)
+	trash, err := h.postService.GetUserTrash(uintUserID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get trash"})
 		return
@@ -235,7 +231,7 @@ func GetTrash(c *gin.Context) {
 }
 
 // UpdatePost 修改文章信息
-func UpdatePost(c *gin.Context) {
+func (h *PostHandler) UpdatePost(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -248,8 +244,6 @@ func UpdatePost(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
 		return
 	}
-
-	db := c.MustGet("db").(*gorm.DB)
 
 	//从url中获取postID
 	postIDStr := c.Param("id")
@@ -265,7 +259,7 @@ func UpdatePost(c *gin.Context) {
 		return
 	}
 
-	if err := service.UpdatePost(db, uintUserID, uint(postID), req); err != nil {
+	if err := h.postService.UpdatePost(uintUserID, uint(postID), req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update"})
 		return
 	}

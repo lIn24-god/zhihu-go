@@ -9,13 +9,33 @@ import (
 	"zhihu-go/internal/model"
 
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
+// UserService 定义用户相关的业务接口
+type UserService interface {
+	InitAdmin(adminUsername, adminPassword string) error
+	RegisterUser(username, password string) (*model.User, error)
+	LoginUser(username, password string) (*model.User, error)
+	GetUserProfile(userID uint) (*model.User, error)
+	UpdateProfile(userID uint, req *dto.UpdateProfileRequest) (*model.User, error)
+	MuteUser(targetUserID uint, hours int) error
+	CheckMuted(userID uint) error
+}
+
+// userService 结构体定义
+type userService struct {
+	userDAO dao.UserDAO
+}
+
+// NewUserService 构造函数
+func NewUserService(userDAO dao.UserDAO) UserService {
+	return &userService{userDAO: userDAO}
+}
+
 // InitAdmin 初始化管理员账号
-func InitAdmin(db *gorm.DB, adminUsername, adminPassword string) error {
+func (s *userService) InitAdmin(adminUsername, adminPassword string) error {
 	//检查是否有管理员
-	count, err := dao.CountAdmin(db)
+	count, err := s.userDAO.CountAdmin()
 	if err != nil {
 		return err
 	}
@@ -35,11 +55,11 @@ func InitAdmin(db *gorm.DB, adminUsername, adminPassword string) error {
 		Password: string(hashedPassword),
 		IsAdmin:  true,
 	}
-	return dao.CreateUser(db, admin)
+	return s.userDAO.CreateUser(admin)
 }
 
 // RegisterUser 用户注册
-func RegisterUser(db *gorm.DB, username, password string) (*model.User, error) {
+func (s *userService) RegisterUser(username, password string) (*model.User, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
@@ -50,7 +70,7 @@ func RegisterUser(db *gorm.DB, username, password string) (*model.User, error) {
 		Password: string(hashedPassword),
 	}
 
-	if err := dao.CreateUser(db, user); err != nil {
+	if err := s.userDAO.CreateUser(user); err != nil {
 		return nil, err
 	}
 
@@ -58,8 +78,8 @@ func RegisterUser(db *gorm.DB, username, password string) (*model.User, error) {
 }
 
 // LoginUser 用户登录
-func LoginUser(db *gorm.DB, username, password string) (*model.User, error) {
-	user, err := dao.GetUserByUsername(db, username)
+func (s *userService) LoginUser(username, password string) (*model.User, error) {
+	user, err := s.userDAO.GetUserByUsername(username)
 	if err != nil {
 		return nil, err
 	}
@@ -72,75 +92,65 @@ func LoginUser(db *gorm.DB, username, password string) (*model.User, error) {
 }
 
 // GetUserProfile 获取用户最新信息
-func GetUserProfile(db *gorm.DB, userID uint) (*dto.UpdateProfileResponse, error) {
-	var user model.User
-	if err := db.First(&user, userID).Error; err != nil {
+func (s *userService) GetUserProfile(userID uint) (*model.User, error) {
+	user, err := s.userDAO.GetUserByID(userID)
+	if err != nil {
 		return nil, err
 	}
-	return &dto.UpdateProfileResponse{
-		ID:       userID,
-		Username: user.Username,
-		Email:    user.Email,
-		Bio:      user.Bio,
-	}, nil
+	return user, nil
 }
 
 // UpdateProfile 用户信息修改
-func UpdateProfile(db *gorm.DB, userID uint, rep *dto.UpdateProfileRequest) (*dto.UpdateProfileResponse, error) {
+func (s *userService) UpdateProfile(userID uint, req *dto.UpdateProfileRequest) (*model.User, error) {
 	updates := make(map[string]interface{})
 
 	//用户名修改
-	if rep.Username != "" {
-		var exists bool
-		if err := db.Model(&model.User{}).
-			Where("username = ? AND id != ?", rep.Username, userID).
-			Select("count(*) > 0").
-			Find(&exists).Error; err != nil {
+	if req.Username != "" {
+
+		exists, err := s.userDAO.CheckUsernameExists(req.Username, userID)
+		if err != nil {
 			return nil, err
 		}
 		if exists {
 			return nil, errors.New("username already taken")
 		}
-		updates["username"] = rep.Username
+		updates["username"] = req.Username
 	}
 
 	//用户邮箱修改
-	if rep.Email != "" {
-		var exists bool
-		if err := db.Model(&model.User{}).
-			Where("email = ? AND id != ?", rep.Email, userID).
-			Select("count(*) > 0").
-			Find(&exists).Error; err != nil {
+	if req.Email != "" {
+		exists, err := s.userDAO.CheckEmailExists(req.Email, userID)
+		if err != nil {
 			return nil, err
 		}
 		if exists {
 			return nil, errors.New("email already taken")
 		}
-		updates["email"] = rep.Email
+		updates["email"] = req.Email
 	}
 
 	//用户简介修改
-	if rep.Bio != "" {
-		updates["bio"] = rep.Bio
+	if req.Bio != "" {
+		updates["bio"] = req.Bio
 	}
 
 	//如果没有要修改的信息，则直接返回
 	if len(updates) == 0 {
-		return GetUserProfile(db, userID)
+		return s.GetUserProfile(userID)
 	}
 
 	//更新信息
-	if err := dao.UpdateProfile(db, userID, updates); err != nil {
+	if err := s.userDAO.UpdateProfile(userID, updates); err != nil {
 		return nil, err
 	}
 
 	//返回更新后的用户信息
-	return GetUserProfile(db, userID)
+	return s.GetUserProfile(userID)
 }
 
 // MuteUser 禁言或解禁用户
 // hours 大于零表示禁言hours小时， 否则则为解除禁言
-func MuteUser(db *gorm.DB, targetUserID uint, hours int) error {
+func (s *userService) MuteUser(targetUserID uint, hours int) error {
 	var mutedUntil *time.Time
 	if hours > 0 {
 		h := time.Now().Add(time.Duration(hours) * time.Hour)
@@ -149,12 +159,12 @@ func MuteUser(db *gorm.DB, targetUserID uint, hours int) error {
 		mutedUntil = nil
 	}
 
-	return dao.UpdateUserMutedUntil(db, targetUserID, mutedUntil)
+	return s.userDAO.UpdateUserMutedUntil(targetUserID, mutedUntil)
 }
 
 // CheckMuted 检查用户是否被禁言
-func CheckMuted(db *gorm.DB, userID uint) error {
-	user, err := dao.GetUserByID(db, userID)
+func (s *userService) CheckMuted(userID uint) error {
+	user, err := s.userDAO.GetUserByID(userID)
 	if err != nil {
 		return err
 	}

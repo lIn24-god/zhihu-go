@@ -8,13 +8,20 @@ import (
 
 	"net/http"
 
-	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
-
 	"github.com/gin-gonic/gin"
 )
 
-func CreateComment(c *gin.Context) {
+// CommentHandler 结构体定义
+type CommentHandler struct {
+	commentService service.CommentService
+}
+
+// NewCommentHandler 构造函数
+func NewCommentHandler(commentService service.CommentService) *CommentHandler {
+	return &CommentHandler{commentService: commentService}
+}
+
+func (h *CommentHandler) CreateComment(c *gin.Context) {
 	var request dto.CommentRequest
 
 	userID, exists := c.Get("user_id")
@@ -34,16 +41,13 @@ func CreateComment(c *gin.Context) {
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-	rdb := c.MustGet("rdb").(*redis.Client)
-
-	//检查是否被禁言
+	/*//检查是否被禁言
 	if err := service.CheckMuted(db, uintUserID); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
-	}
+	}*/
 
-	response, err := service.CreateComment(db, rdb, &request, uintUserID)
+	response, err := h.commentService.CreateComment(&request, uintUserID)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrTooFrequent):

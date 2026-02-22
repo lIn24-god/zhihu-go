@@ -5,15 +5,23 @@ import (
 	"net/http"
 	"zhihu-go/internal/service"
 
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
-
 	"zhihu-go/internal/dto"
+
+	"github.com/gin-gonic/gin"
 )
 
-//关注
+// FollowHandler 结构体定义
+type FollowHandler struct {
+	followService service.FollowService
+}
 
-func Follow(c *gin.Context) {
+// NewFollowHandler 构造函数
+func NewFollowHandler(followService service.FollowService) *FollowHandler {
+	return &FollowHandler{followService: followService}
+}
+
+// Follow 关注
+func (h *FollowHandler) Follow(c *gin.Context) {
 	var request = dto.FollowRequest{}
 
 	// 获取已存储的 user_id（登录时已设置）
@@ -35,8 +43,7 @@ func Follow(c *gin.Context) {
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-	err := service.FollowUser(db, request.FolloweeID, followerIDUint)
+	err := h.followService.FollowUser(request.FolloweeID, followerIDUint)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrUserNotFound):
@@ -54,9 +61,8 @@ func Follow(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Followed successfully"})
 }
 
-//取关
-
-func Unfollow(c *gin.Context) {
+// Unfollow 取关
+func (h *FollowHandler) Unfollow(c *gin.Context) {
 	var request = dto.FollowRequest{}
 
 	// 获取已存储的 user_id（登录时已设置）
@@ -78,8 +84,7 @@ func Unfollow(c *gin.Context) {
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-	if err := service.UnfollowUser(db, request.FolloweeID, followerIDUint); err != nil {
+	if err := h.followService.UnfollowUser(request.FolloweeID, followerIDUint); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unfollow user"})
 		return
 	}
@@ -87,9 +92,8 @@ func Unfollow(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "unfollowed successfully"})
 }
 
-// 获取用户粉丝列表
-
-func GetFollowers(c *gin.Context) {
+// GetFollowers 获取用户粉丝列表
+func (h *FollowHandler) GetFollowers(c *gin.Context) {
 
 	// 获取已存储的 user_id（登录时已设置）
 	userID, exists := c.Get("user_id")
@@ -105,9 +109,7 @@ func GetFollowers(c *gin.Context) {
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-
-	followers, err := service.GetFollowers(db, userIDUint)
+	followers, err := h.followService.GetFollowers(userIDUint)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to get followers"})
 		return
@@ -119,9 +121,8 @@ func GetFollowers(c *gin.Context) {
 	})
 }
 
-//获取用户关注列表
-
-func GetFollowees(c *gin.Context) {
+// GetFollowees 获取用户关注列表
+func (h *FollowHandler) GetFollowees(c *gin.Context) {
 	// 获取已存储的 user_id（登录时已设置）
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -136,9 +137,7 @@ func GetFollowees(c *gin.Context) {
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-
-	followees, err := service.GetFollowees(db, userIDUint)
+	followees, err := h.followService.GetFollowees(userIDUint)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get followees"})
 		return
