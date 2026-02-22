@@ -3,15 +3,32 @@ package service
 import (
 	"zhihu-go/internal/model"
 
-	"gorm.io/gorm"
-
 	"zhihu-go/internal/dao"
 
 	"zhihu-go/internal/dto"
 )
 
+// PostService 定义文章相关的数据访问接口
+type PostService interface {
+	CreatePost(rep *dto.PostRequest, authorID uint) error
+	GetPost(authorID uint, status string) ([]dto.PostResponse, error)
+	SearchPosts(keyword string, page, pageSize int) ([]dto.PostResponse, int64, error)
+	SoftDeletePost(postID, userID uint) error
+	RestorePost(postID, userID uint) error
+	GetUserTrash(userID uint) ([]model.Post, error)
+	UpdatePost(userID, postID uint, req dto.UpdatePostRequest) error
+}
+
+// 结构体定义
+type postService struct {
+	postDAO dao.PostDAO
+}
+
+// NewPostService 构造函数
+func NewPostService(postDAO dao.PostDAO) PostService { return &postService{postDAO: postDAO} }
+
 // CreatePost 创建文章
-func CreatePost(db *gorm.DB, rep *dto.PostRequest, authorID uint) error {
+func (s *postService) CreatePost(rep *dto.PostRequest, authorID uint) error {
 	//如果前端未传入status，则默认为draft
 	if rep.Status != "draft" && rep.Status != "published" {
 		rep.Status = "draft"
@@ -24,14 +41,14 @@ func CreatePost(db *gorm.DB, rep *dto.PostRequest, authorID uint) error {
 		Status:   rep.Status,
 	}
 
-	err := dao.CreatePost(db, post)
+	err := s.postDAO.CreatePost(post)
 
 	return err
 }
 
 // GetPost 获取文章
-func GetPost(db *gorm.DB, authorID uint, status string) ([]dto.PostResponse, error) {
-	posts, err := dao.GetPost(db, authorID, status)
+func (s *postService) GetPost(authorID uint, status string) ([]dto.PostResponse, error) {
+	posts, err := s.postDAO.GetPost(authorID, status)
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +67,8 @@ func GetPost(db *gorm.DB, authorID uint, status string) ([]dto.PostResponse, err
 }
 
 // SearchPosts 搜索文章
-func SearchPosts(db *gorm.DB, keyword string, page, pageSize int) ([]dto.PostResponse, int64, error) {
-	posts, total, err := dao.SearchPost(db, keyword, page, pageSize)
+func (s *postService) SearchPosts(keyword string, page, pageSize int) ([]dto.PostResponse, int64, error) {
+	posts, total, err := s.postDAO.SearchPost(keyword, page, pageSize)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -69,10 +86,10 @@ func SearchPosts(db *gorm.DB, keyword string, page, pageSize int) ([]dto.PostRes
 }
 
 // SoftDeletePost 软删除文章
-func SoftDeletePost(db *gorm.DB, postID, userID uint) error {
+func (s *postService) SoftDeletePost(postID, userID uint) error {
 
 	//检查文章是否属于该用户
-	post, err := dao.GetPostByID(db.Unscoped(), postID)
+	post, err := s.postDAO.GetPostByIDWithDeleted(postID)
 	if err != nil {
 		return err
 	}
@@ -80,14 +97,14 @@ func SoftDeletePost(db *gorm.DB, postID, userID uint) error {
 		return ErrUnauthorized
 	}
 
-	return dao.SoftDeletePost(db, postID)
+	return s.postDAO.SoftDeletePost(postID)
 }
 
 // RestorePost 恢复已删除的文章
-func RestorePost(db *gorm.DB, postID, userID uint) error {
+func (s *postService) RestorePost(postID, userID uint) error {
 
 	//检查文章是否属于该用户
-	post, err := dao.GetPostByID(db.Unscoped(), postID)
+	post, err := s.postDAO.GetPostByIDWithDeleted(postID)
 	if err != nil {
 		return err
 	}
@@ -95,12 +112,12 @@ func RestorePost(db *gorm.DB, postID, userID uint) error {
 		return ErrUnauthorized
 	}
 
-	return dao.RestorePost(db, postID)
+	return s.postDAO.RestorePost(postID)
 }
 
 // GetUserTrash 获取用户回收站里的文章
-func GetUserTrash(db *gorm.DB, userID uint) ([]model.Post, error) {
-	posts, err := dao.GetUserDeletedPosts(db, userID)
+func (s *postService) GetUserTrash(userID uint) ([]model.Post, error) {
+	posts, err := s.postDAO.GetUserDeletedPosts(userID)
 	if err != nil {
 		return nil, err
 	}
@@ -109,8 +126,8 @@ func GetUserTrash(db *gorm.DB, userID uint) ([]model.Post, error) {
 }
 
 // UpdatePost 更新文章
-func UpdatePost(db *gorm.DB, userID, postID uint, req dto.UpdatePostRequest) error {
-	post, err := dao.GetPostByID(db, postID)
+func (s *postService) UpdatePost(userID, postID uint, req dto.UpdatePostRequest) error {
+	post, err := s.postDAO.GetPostByID(postID)
 	if err != nil {
 		return err
 	}
@@ -132,5 +149,5 @@ func UpdatePost(db *gorm.DB, userID, postID uint, req dto.UpdatePostRequest) err
 		post.Content = req.Content
 	}
 
-	return dao.UpdatePost(db, post)
+	return s.postDAO.UpdatePost(post)
 }

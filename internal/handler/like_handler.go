@@ -8,13 +8,20 @@ import (
 
 	"net/http"
 
-	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
-
 	"github.com/gin-gonic/gin"
 )
 
-func CreateLike(c *gin.Context) {
+// LikeHandler 结构体定义
+type LikeHandler struct {
+	likeService service.LikeService
+}
+
+// NewLikeHandler 构造函数
+func NewLikeHandler(likeService service.LikeService) *LikeHandler {
+	return &LikeHandler{likeService: likeService}
+}
+
+func (h *LikeHandler) CreateLike(c *gin.Context) {
 	var request dto.LikeRequest
 
 	userID, exists := c.Get("user_id")
@@ -34,11 +41,8 @@ func CreateLike(c *gin.Context) {
 		return
 	}
 
-	db := c.MustGet("db").(*gorm.DB)
-	rdb := c.MustGet("rdb").(*redis.Client)
-
 	//防刷机制
-	if err := service.CreateLike(db, rdb, request, uintUserID); err != nil {
+	if err := h.likeService.CreateLike(request, uintUserID); err != nil {
 		switch {
 		case errors.Is(err, service.ErrTooFrequent):
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})

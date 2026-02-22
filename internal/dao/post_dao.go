@@ -6,36 +6,62 @@ import (
 	"gorm.io/gorm"
 )
 
-//创建文章
-
-func CreatePost(db *gorm.DB, post *model.Post) error {
-	return db.Create(post).Error
+// PostDAO 定义文章数据访问接口
+type PostDAO interface {
+	CreatePost(post *model.Post) error
+	GetPost(authorID uint, status string) ([]model.Post, error)
+	GetPostByID(postID uint) (*model.Post, error)
+	GetPostByIDWithDeleted(postID uint) (*model.Post, error)
+	SearchPost(keyword string, page, pageSize int) ([]model.Post, int64, error)
+	SoftDeletePost(postID uint) error
+	RestorePost(postID uint) error
+	GetUserDeletedPosts(userID uint) ([]model.Post, error)
+	UpdatePost(post *model.Post) error
 }
 
-//获取用户文章
+// 结构体定义
+type postDAO struct {
+	db *gorm.DB
+}
 
-func GetPost(db *gorm.DB, authorID uint, status string) ([]model.Post, error) {
+// NewPostDAO 构造函数
+func NewPostDAO(db *gorm.DB) PostDAO { return &postDAO{db: db} }
+
+// CreatePost 创建文章
+func (u *postDAO) CreatePost(post *model.Post) error {
+	return u.db.Create(post).Error
+}
+
+// GetPost 获取用户文章
+func (u *postDAO) GetPost(authorID uint, status string) ([]model.Post, error) {
 	var posts []model.Post
-	err := db.Where("author_id = ? AND status = ?", authorID, status).Find(&posts).Error
+	err := u.db.Where("author_id = ? AND status = ?", authorID, status).Find(&posts).Error
 	return posts, err
 }
 
 // GetPostByID 通过postID获取文章
-func GetPostByID(db *gorm.DB, postID uint) (*model.Post, error) {
+func (u *postDAO) GetPostByID(postID uint) (*model.Post, error) {
 	var post model.Post
-	err := db.Where("id = ?", postID).First(&post).Error
+	err := u.db.Where("id = ?", postID).First(&post).Error
+	return &post, err
+}
+
+// GetPostByIDWithDeleted 通过postID获取文章(包括已删除的)
+func (u *postDAO) GetPostByIDWithDeleted(postID uint) (*model.Post, error) {
+	var post model.Post
+	err := u.db.Unscoped().First(&post, postID).Error
 	return &post, err
 }
 
 // SearchPost 使用全文索引搜索文章，并返回文章列表和总数
-func SearchPost(db *gorm.DB, keyword string, page, pageSize int) ([]model.Post, int64, error) {
+func (u *postDAO) SearchPost(keyword string, page, pageSize int) ([]model.Post, int64, error) {
 	var posts []model.Post
 	var total int64
 
 	offSet := (page - 1) * pageSize
 
 	//用全文索引构建查询
-	query := db.Where("MATCH(title, content) AGAINST(? IN NATURAL LANGUAGE MODE)", keyword)
+	query := u.db.Where("MATCH(title, content) AGAINST(? IN NATURAL LANGUAGE MODE)", keyword)
 	if err := query.Model(&model.Post{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -55,24 +81,24 @@ func SearchPost(db *gorm.DB, keyword string, page, pageSize int) ([]model.Post, 
 }
 
 // SoftDeletePost 软删除文章
-func SoftDeletePost(db *gorm.DB, postID uint) error {
-	return db.Delete(&model.Post{}, postID).Error
+func (u *postDAO) SoftDeletePost(postID uint) error {
+	return u.db.Delete(&model.Post{}, postID).Error
 }
 
 // RestorePost 恢复软删除的文章
-func RestorePost(db *gorm.DB, postID uint) error {
-	return db.Model(&model.Post{}).Unscoped().Where("id = ?", postID).
+func (u *postDAO) RestorePost(postID uint) error {
+	return u.db.Model(&model.Post{}).Unscoped().Where("id = ?", postID).
 		Update("deleted_at", nil).Error
 }
 
 // GetUserDeletedPosts 获取用户已删除的文章
-func GetUserDeletedPosts(db *gorm.DB, userID uint) ([]model.Post, error) {
+func (u *postDAO) GetUserDeletedPosts(userID uint) ([]model.Post, error) {
 	var posts []model.Post
-	err := db.Unscoped().Where("author_id = ? AND deleted_at IS NOT NULL", userID).Find(&posts).Error
+	err := u.db.Unscoped().Where("author_id = ? AND deleted_at IS NOT NULL", userID).Find(&posts).Error
 	return posts, err
 }
 
 // UpdatePost 更新文章信息
-func UpdatePost(db *gorm.DB, post *model.Post) error {
-	return db.Save(&post).Error
+func (u *postDAO) UpdatePost(post *model.Post) error {
+	return u.db.Save(&post).Error
 }
