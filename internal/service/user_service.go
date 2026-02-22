@@ -20,6 +20,7 @@ type UserService interface {
 	UpdateProfile(userID uint, req *dto.UpdateProfileRequest) (*model.User, error)
 	MuteUser(targetUserID uint, hours int) error
 	CheckMuted(userID uint) error
+	IsAdmin(userID uint) (bool, error)
 }
 
 // userService 结构体定义
@@ -174,4 +175,12 @@ func (s *userService) CheckMuted(userID uint) error {
 	}
 
 	return nil
+}
+
+func (s *userService) IsAdmin(userID uint) (bool, error) {
+	user, err := s.userDAO.GetUserByID(userID)
+	if err != nil {
+		return false, err
+	}
+	return user.IsAdmin, nil
 }

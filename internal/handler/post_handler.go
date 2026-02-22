@@ -14,11 +14,15 @@ import (
 // PostHandler 结构体定义
 type PostHandler struct {
 	postService service.PostService
+	userService service.UserService
 }
 
 // NewPostHandler 构造函数
-func NewPostHandler(postService service.PostService) *PostHandler {
-	return &PostHandler{postService: postService}
+func NewPostHandler(postService service.PostService, userService service.UserService) *PostHandler {
+	return &PostHandler{
+		postService: postService,
+		userService: userService,
+	}
 }
 
 // CreatePost 文章发布
@@ -42,11 +46,11 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 		return
 	}
 
-	/*//检查是否被禁言
-	if err := service.CheckMuted(db, uintUserID); err != nil {
+	//检查是否被禁言
+	if err := h.userService.CheckMuted(uintUserID); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
-	}*/
+	}
 
 	if err := h.postService.CreatePost(&request, uintUserID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create a post"})

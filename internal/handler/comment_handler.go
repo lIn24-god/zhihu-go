@@ -14,11 +14,15 @@ import (
 // CommentHandler 结构体定义
 type CommentHandler struct {
 	commentService service.CommentService
+	userService    service.UserService
 }
 
 // NewCommentHandler 构造函数
-func NewCommentHandler(commentService service.CommentService) *CommentHandler {
-	return &CommentHandler{commentService: commentService}
+func NewCommentHandler(commentService service.CommentService, userService service.UserService) *CommentHandler {
+	return &CommentHandler{
+		commentService: commentService,
+		userService:    userService,
+	}
 }
 
 func (h *CommentHandler) CreateComment(c *gin.Context) {
@@ -41,11 +45,11 @@ func (h *CommentHandler) CreateComment(c *gin.Context) {
 		return
 	}
 
-	/*//检查是否被禁言
-	if err := service.CheckMuted(db, uintUserID); err != nil {
+	//检查是否被禁言
+	if err := h.userService.CheckMuted(uintUserID); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
-	}*/
+	}
 
 	response, err := h.commentService.CreateComment(&request, uintUserID)
 	if err != nil {

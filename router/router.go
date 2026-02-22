@@ -3,6 +3,7 @@ package router
 import (
 	"zhihu-go/internal/handler"
 	"zhihu-go/internal/middleware"
+	"zhihu-go/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,22 +15,28 @@ type Router struct {
 	likeHandler    *handler.LikeHandler
 	followHandler  *handler.FollowHandler
 	commentHandler *handler.CommentHandler
+	userService    service.UserService
 }
 
 // NewRouter 构造函数
 func NewRouter(userHandler *handler.UserHandler, postHandler *handler.PostHandler,
 	likeHandler *handler.LikeHandler, followHandler *handler.FollowHandler,
-	commentHandler *handler.CommentHandler) *Router {
+	commentHandler *handler.CommentHandler, userService service.UserService) *Router {
 	return &Router{
 		userHandler:    userHandler,
 		postHandler:    postHandler,
 		likeHandler:    likeHandler,
 		followHandler:  followHandler,
 		commentHandler: commentHandler,
+		userService:    userService,
 	}
 }
 
 func (r *Router) SetUp(engine *gin.Engine) {
+
+	authMiddleware := middleware.AuthMiddleware()
+	adminMiddleware := middleware.AdminMiddleware(r.userService)
+
 	//公共路由
 	public := engine.Group("/api")
 	{
@@ -40,7 +47,7 @@ func (r *Router) SetUp(engine *gin.Engine) {
 
 	//需要认证的路由
 	protected := engine.Group("/api")
-	protected.Use(middleware.AuthMiddleware())
+	protected.Use(authMiddleware)
 	{
 		protected.POST("/user/follow", r.followHandler.Follow)
 		protected.POST("/user/unfollow", r.followHandler.Unfollow)
@@ -58,10 +65,10 @@ func (r *Router) SetUp(engine *gin.Engine) {
 		protected.POST("/like", r.likeHandler.CreateLike)
 
 		//管理员路由
-		/*admin := protected.Group("/admin")
-		admin.Use(middleware.AdminMiddleware())
+		admin := protected.Group("/admin")
+		admin.Use(adminMiddleware)
 		{
 			admin.POST("/mute", r.userHandler.MuteUser)
-		}*/
+		}
 	}
 }

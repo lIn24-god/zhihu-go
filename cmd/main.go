@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"zhihu-go/config"
 	"zhihu-go/internal/dao"
 	"zhihu-go/internal/handler"
@@ -63,26 +64,27 @@ func main() {
 
 	//创建 Handler 实例，注入 Service
 	userHandler := handler.NewUserHandler(userService)
-	postHandler := handler.NewPostHandler(postService)
+	postHandler := handler.NewPostHandler(postService, userService)
 	likeHandler := handler.NewLikeHandler(likeService)
 	followHandler := handler.NewFollowHandler(followService)
-	commentHandler := handler.NewCommentHandler(commentService)
+	commentHandler := handler.NewCommentHandler(commentService, userService)
 
 	//设置路由
 	r := gin.Default()
 
 	//使用 Router 结构体
-	routerInstance := router.NewRouter(userHandler, postHandler, likeHandler, followHandler, commentHandler) // 传入需要的 handler
+	routerInstance := router.NewRouter(userHandler, postHandler, likeHandler,
+		followHandler, commentHandler, userService) // 传入需要的 handler
 	routerInstance.SetUp(r)
 
-	/*// 使用配置中的管理员信息
+	// 使用配置中的管理员信息
 	adminUser := config.Config.Admin.Username
 	adminPass := config.Config.Admin.Password
 
 	// 调用初始化管理员
-	if err := service.InitAdmin(db, adminUser, adminPass); err != nil {
+	if err := userService.InitAdmin(adminUser, adminPass); err != nil {
 		log.Fatalf("初始化管理员失败: %v", err)
-	}*/
+	}
 
 	//启动gin服务
 	r.Run(":8080")
