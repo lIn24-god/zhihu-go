@@ -25,7 +25,9 @@ type postService struct {
 }
 
 // NewPostService 构造函数
-func NewPostService(postDAO dao.PostDAO) PostService { return &postService{postDAO: postDAO} }
+func NewPostService(postDAO dao.PostDAO) PostService {
+	return &postService{postDAO: postDAO}
+}
 
 // CreatePost 创建文章
 func (s *postService) CreatePost(rep *dto.PostRequest, authorID uint) error {
