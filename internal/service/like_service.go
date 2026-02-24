@@ -2,7 +2,7 @@ package service
 
 import (
 	"zhihu-go/internal/model"
-	"zhihu-go/internal/utils"
+	"zhihu-go/pkg/ratelimit"
 
 	"zhihu-go/internal/dto"
 
@@ -38,7 +38,7 @@ func (s *likeService) CreateLike(req dto.LikeRequest, userID uint) error {
 	}
 
 	// 防刷机制
-	allowed, err := utils.Allow(s.rdb, "点赞", userID, 5, 60)
+	allowed, err := ratelimit.Allow(s.rdb, "点赞", userID, 5, 60)
 	if err != nil {
 		return err
 	}

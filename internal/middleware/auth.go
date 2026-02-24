@@ -1,11 +1,12 @@
 package middleware
 
 import (
+	"zhihu-go/pkg/jwtutil"
+
 	"github.com/gin-gonic/gin"
 
 	"net/http"
 	"strings"
-	"zhihu-go/internal/utils"
 )
 
 func AuthMiddleware() gin.HandlerFunc {
@@ -33,7 +34,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		//解析token
-		claims, err := utils.ParseToken(tokenString)
+		claims, err := jwtutil.ParseToken(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()

@@ -46,13 +46,16 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 		return
 	}
 
+	// 从 gin.Context 获取请求的 context
+	ctx := c.Request.Context()
+
 	//检查是否被禁言
 	if err := h.userService.CheckMuted(uintUserID); err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.postService.CreatePost(&request, uintUserID); err != nil {
+	if _, err := h.postService.CreatePost(ctx, uintUserID, &request); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create a post"})
 		return
 	}
@@ -263,7 +266,10 @@ func (h *PostHandler) UpdatePost(c *gin.Context) {
 		return
 	}
 
-	if err := h.postService.UpdatePost(uintUserID, uint(postID), req); err != nil {
+	// 从 gin.Context 获取请求的 context
+	ctx := c.Request.Context()
+
+	if err := h.postService.UpdatePost(ctx, uintUserID, uint(postID), req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update"})
 		return
 	}

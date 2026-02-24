@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"zhihu-go/internal/model"
@@ -14,21 +15,24 @@ import (
 
 // PostCache 定义文章缓存接口
 type PostCache interface {
+	Key(postID uint) string
+	Get(ctx context.Context, postID uint) (*model.Post, error)
+	Set(ctx context.Context, post *model.Post) error
 }
 
 // postCache Redis 实现
 type postCache struct {
-	client *redis.Client
-	prefix string        //缓存key前缀
-	ttl    time.Duration //默认过期时间
+	client  *redis.Client
+	prefix  string        //缓存key前缀
+	baseTTL time.Duration //默认过期时间
 }
 
 // NewPostCache 创建文章缓存实例
 func NewPostCache(client *redis.Client) PostCache {
 	return &postCache{
-		client: client,
-		prefix: "post:",
-		ttl:    time.Hour,
+		client:  client,
+		prefix:  "post:",
+		baseTTL: time.Hour,
 	}
 }
 
@@ -60,5 +64,10 @@ func (c *postCache) Set(ctx context.Context, post *model.Post) error {
 	if err != nil {
 		return err
 	}
-	return c.client.Set(ctx, c.Key(post.ID), data, c.ttl).Err()
+
+	// 随机偏移量：基础 TTL 的 ±20%
+	offset := time.Duration(rand.Intn(int(c.baseTTL/5))) - c.baseTTL/10
+	ttl := c.baseTTL + offset
+	
+	return c.client.Set(ctx, c.Key(post.ID), data, ttl).Err()
 }

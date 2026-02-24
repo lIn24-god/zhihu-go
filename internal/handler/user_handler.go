@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 	"zhihu-go/internal/service"
-	"zhihu-go/internal/utils"
+	"zhihu-go/pkg/jwtutil"
 
 	"zhihu-go/internal/dto"
 
@@ -54,7 +54,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	}
 
 	// 生成JWT token
-	token, err := utils.GenerateToken(user.ID)
+	token, err := jwtutil.GenerateToken(user.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
 		return

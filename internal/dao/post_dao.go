@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"context"
 	"zhihu-go/internal/model"
 
 	"gorm.io/gorm"
@@ -8,9 +9,9 @@ import (
 
 // PostDAO 定义文章数据访问接口
 type PostDAO interface {
-	CreatePost(post *model.Post) error
+	CreatePost(ctx context.Context, post *model.Post) error
 	GetPost(authorID uint, status string) ([]model.Post, error)
-	GetPostByID(postID uint) (*model.Post, error)
+	GetPostByID(ctx context.Context, postID uint) (*model.Post, error)
 	GetPostByIDWithDeleted(postID uint) (*model.Post, error)
 	SearchPost(keyword string, page, pageSize int) ([]model.Post, int64, error)
 	SoftDeletePost(postID uint) error
@@ -28,8 +29,8 @@ type postDAO struct {
 func NewPostDAO(db *gorm.DB) PostDAO { return &postDAO{db: db} }
 
 // CreatePost 创建文章
-func (u *postDAO) CreatePost(post *model.Post) error {
-	return u.db.Create(post).Error
+func (u *postDAO) CreatePost(ctx context.Context, post *model.Post) error {
+	return u.db.WithContext(ctx).Create(post).Error
 }
 
 // GetPost 获取用户文章
@@ -40,9 +41,9 @@ func (u *postDAO) GetPost(authorID uint, status string) ([]model.Post, error) {
 }
 
 // GetPostByID 通过postID获取文章
-func (u *postDAO) GetPostByID(postID uint) (*model.Post, error) {
+func (u *postDAO) GetPostByID(ctx context.Context, postID uint) (*model.Post, error) {
 	var post model.Post
-	err := u.db.Where("id = ?", postID).First(&post).Error
+	err := u.db.WithContext(ctx).First(&post, postID).Error
 	return &post, err
 }
 

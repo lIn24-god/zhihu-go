@@ -2,7 +2,7 @@ package service
 
 import (
 	"zhihu-go/internal/model"
-	"zhihu-go/internal/utils"
+	"zhihu-go/pkg/ratelimit"
 
 	"zhihu-go/internal/dto"
 
@@ -39,7 +39,7 @@ func (s *commentService) CreateComment(req *dto.CommentRequest, authorID uint) (
 	}
 
 	// 防刷机制
-	allowed, err := utils.Allow(s.rdb, "评论", authorID, 5, 60)
+	allowed, err := ratelimit.Allow(s.rdb, "评论", authorID, 5, 60)
 	if err != nil {
 		return nil, err
 	}

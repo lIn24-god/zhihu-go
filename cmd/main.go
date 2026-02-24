@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"log"
 	"zhihu-go/config"
+	"zhihu-go/internal/cache"
 	"zhihu-go/internal/dao"
 	"zhihu-go/internal/handler"
 	"zhihu-go/internal/model"
 	"zhihu-go/internal/service"
+	"zhihu-go/pkg/bloom"
 	"zhihu-go/router"
 
 	"github.com/gin-gonic/gin"
@@ -55,9 +57,15 @@ func main() {
 	followDAO := dao.NewFollowDAO(db)
 	commentDAO := dao.NewCommentDAO(db)
 
+	// 初始化缓存
+	postCache := cache.NewPostCache(rdb)
+
+	// 初始化布隆过滤器
+	bloomFilter := bloom.NewRedisBloom(rdb)
+
 	//创建 Service 实例，注入 DAO
 	userService := service.NewUserService(userDAO)
-	postService := service.NewPostService(postDAO)
+	postService := service.NewPostService(postDAO, postCache, bloomFilter)
 	likeService := service.NewLikeService(likeDAO, rdb)
 	followService := service.NewFollowService(followDAO, userDAO)
 	commentService := service.NewCommentService(commentDAO, rdb)
@@ -87,5 +95,8 @@ func main() {
 	}
 
 	//启动gin服务
-	r.Run(":8080")
+	err1 := r.Run(":8080")
+	if err1 != nil {
+		return
+	}
 }

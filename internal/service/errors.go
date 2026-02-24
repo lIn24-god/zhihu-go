@@ -10,4 +10,5 @@ var (
 	ErrCannotFollowSelf = errors.New("cannot follow yourself")
 	ErrUnauthorized     = errors.New("unauthorized")
 	ErrTooFrequent      = errors.New("too frequent")
+	ErrPostNotFound     = errors.New("post not found")
 )
