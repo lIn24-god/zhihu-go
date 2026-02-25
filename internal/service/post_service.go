@@ -2,10 +2,13 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"zhihu-go/internal/model"
 
 	"golang.org/x/sync/singleflight"
+	"gorm.io/gorm"
 
 	"zhihu-go/internal/cache"
 
@@ -18,60 +21,72 @@ import (
 // PostService 定义文章相关的数据访问接口
 type PostService interface {
 	CreatePost(ctx context.Context, userID uint, req *dto.PostRequest) (*model.Post, error)
-	GetPost(authorID uint, status string) ([]dto.PostResponse, error)
-	SearchPosts(keyword string, page, pageSize int) ([]dto.PostResponse, int64, error)
-	SoftDeletePost(postID, userID uint) error
-	RestorePost(postID, userID uint) error
-	GetUserTrash(userID uint) ([]model.Post, error)
+	GetPost(ctx context.Context, authorID uint, status string) ([]dto.PostResponse, error)
+	SearchPosts(ctx context.Context, keyword string, page, pageSize int) ([]dto.PostResponse, int64, error)
+	SoftDeletePost(ctx context.Context, postID, userID uint) error
+	RestorePost(ctx context.Context, postID, userID uint) error
+	GetUserTrash(ctx context.Context, userID uint) ([]model.Post, error)
 	UpdatePost(ctx context.Context, userID, postID uint, req dto.UpdatePostRequest) error
 	GetPostByID(ctx context.Context, postID uint) (*model.Post, error)
 }
 
 // 结构体定义
 type postService struct {
-	postDAO   dao.PostDAO
-	postCache cache.PostCache
-	bloom     bloom.Filter
-	sfGroup   singleflight.Group
+	postDAO     dao.PostDAO
+	userService UserService
+	postCache   cache.PostCache
+	bloom       bloom.Filter
+	sfGroup     singleflight.Group
 }
 
 // NewPostService 构造函数
-func NewPostService(postDAO dao.PostDAO, postCache cache.PostCache, bloom bloom.Filter) PostService {
+func NewPostService(postDAO dao.PostDAO, userService UserService, postCache cache.PostCache, bloom bloom.Filter) PostService {
 	return &postService{
-		postDAO:   postDAO,
-		postCache: postCache,
-		bloom:     bloom,
+		postDAO:     postDAO,
+		userService: userService,
+		postCache:   postCache,
+		bloom:       bloom,
 	}
 }
 
 // CreatePost 创建文章，并将新文章 ID 加入布隆过滤器
 func (s *postService) CreatePost(ctx context.Context, userID uint, req *dto.PostRequest) (*model.Post, error) {
+	// 1. 检查用户是否存在且未被禁言
+	_, err := s.userService.GetUserProfile(ctx, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, fmt.Errorf("find user failed: %w", err)
+	}
+	if s.userService.CheckMuted(ctx, userID) != nil { // 假设 User 模型有 IsMuted 方法或字段
+		return nil, ErrUserMuted
+	}
 
-	//如果前端未传入status，则默认为draft
+	// 2. 处理文章状态默认值
 	if req.Status != "draft" && req.Status != "published" {
 		req.Status = "draft"
 	}
 
-	// 构建文章模型（省略细节）
+	// 3. 构建文章模型
 	post := &model.Post{
 		AuthorID: userID,
 		Title:    req.Title,
 		Content:  req.Content,
-		Status:   req.Status, // 草稿等
+		Status:   req.Status,
 	}
 
-	// 存入数据库
+	// 4. 存入数据库
 	if err := s.postDAO.CreatePost(ctx, post); err != nil {
 		return nil, err
 	}
 
-	// 将新文章 ID 加入布隆过滤器
+	// 5. 布隆过滤器添加
 	if err := s.bloom.Add(ctx, "bloom:post", post.ID); err != nil {
-		// 布隆过滤器添加失败，记录日志，不影响文章创建
-		log.Printf("bloom add error: %v", err)
+		log.Printf("bloom add error: %v", err) // 不影响主流程
 	}
 
-	// 可以主动缓存
+	// 6. 写入缓存
 	if err := s.postCache.Set(ctx, post); err != nil {
 		log.Printf("cache set error: %v", err)
 	}
@@ -80,9 +95,12 @@ func (s *postService) CreatePost(ctx context.Context, userID uint, req *dto.Post
 }
 
 // GetPost 获取文章
-func (s *postService) GetPost(authorID uint, status string) ([]dto.PostResponse, error) {
-	posts, err := s.postDAO.GetPost(authorID, status)
+func (s *postService) GetPost(ctx context.Context, authorID uint, status string) ([]dto.PostResponse, error) {
+	posts, err := s.postDAO.GetPost(ctx, authorID, status)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrPostNotFound
+		}
 		return nil, err
 	}
 
@@ -96,12 +114,12 @@ func (s *postService) GetPost(authorID uint, status string) ([]dto.PostResponse,
 		})
 	}
 
-	return result, err
+	return result, nil
 }
 
 // SearchPosts 搜索文章
-func (s *postService) SearchPosts(keyword string, page, pageSize int) ([]dto.PostResponse, int64, error) {
-	posts, total, err := s.postDAO.SearchPost(keyword, page, pageSize)
+func (s *postService) SearchPosts(ctx context.Context, keyword string, page, pageSize int) ([]dto.PostResponse, int64, error) {
+	posts, total, err := s.postDAO.SearchPost(ctx, keyword, page, pageSize)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -109,6 +127,7 @@ func (s *postService) SearchPosts(keyword string, page, pageSize int) ([]dto.Pos
 	result := make([]dto.PostResponse, len(posts))
 	for i, p := range posts {
 		result[i] = dto.PostResponse{
+			ID:       p.ID,
 			Title:    p.Title,
 			AuthorID: p.AuthorID,
 			Content:  p.Content,
@@ -119,54 +138,60 @@ func (s *postService) SearchPosts(keyword string, page, pageSize int) ([]dto.Pos
 }
 
 // SoftDeletePost 软删除文章
-func (s *postService) SoftDeletePost(postID, userID uint) error {
+func (s *postService) SoftDeletePost(ctx context.Context, postID, userID uint) error {
 
 	//检查文章是否属于该用户
-	post, err := s.postDAO.GetPostByIDWithDeleted(postID)
+	post, err := s.postDAO.GetPostByIDWithDeleted(ctx, postID)
 	if err != nil {
 		return err
 	}
 	if post.AuthorID != userID {
-		return ErrUnauthorized
+		return ErrPostNotOwned
 	}
 
-	return s.postDAO.SoftDeletePost(postID)
+	return s.postDAO.SoftDeletePost(ctx, postID)
 }
 
 // RestorePost 恢复已删除的文章
-func (s *postService) RestorePost(postID, userID uint) error {
+func (s *postService) RestorePost(ctx context.Context, postID, userID uint) error {
 
 	//检查文章是否属于该用户
-	post, err := s.postDAO.GetPostByIDWithDeleted(postID)
+	post, err := s.postDAO.GetPostByIDWithDeleted(ctx, postID)
 	if err != nil {
 		return err
 	}
 	if post.AuthorID != userID {
-		return ErrUnauthorized
+		return ErrPostNotOwned
 	}
 
-	return s.postDAO.RestorePost(postID)
+	return s.postDAO.RestorePost(ctx, postID)
 }
 
 // GetUserTrash 获取用户回收站里的文章
-func (s *postService) GetUserTrash(userID uint) ([]model.Post, error) {
-	posts, err := s.postDAO.GetUserDeletedPosts(userID)
+func (s *postService) GetUserTrash(ctx context.Context, userID uint) ([]model.Post, error) {
+	posts, err := s.postDAO.GetUserDeletedPosts(ctx, userID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrPostNotFound
+		}
 		return nil, err
 	}
 
-	return posts, err
+	return posts, nil
 }
 
 // UpdatePost 更新文章
 func (s *postService) UpdatePost(ctx context.Context, userID, postID uint, req dto.UpdatePostRequest) error {
 	post, err := s.postDAO.GetPostByID(ctx, postID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrPostNotFound
+		}
 		return err
 	}
 
 	if userID != post.AuthorID {
-		return ErrUnauthorized
+		return ErrPostNotOwned
 	}
 
 	//只更新非空字段
@@ -182,7 +207,7 @@ func (s *postService) UpdatePost(ctx context.Context, userID, postID uint, req d
 		post.Content = req.Content
 	}
 
-	return s.postDAO.UpdatePost(post)
+	return s.postDAO.UpdatePost(ctx, post)
 }
 
 // GetPostByID 靠ID获取文章(带缓存和singleFlight保护)

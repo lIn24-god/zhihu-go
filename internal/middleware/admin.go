@@ -23,7 +23,9 @@ func AdminMiddleware(userService service.UserService) gin.HandlerFunc {
 			return
 		}
 
-		isAdmin, err := userService.IsAdmin(uintUserID)
+		ctx := c.Request.Context()
+
+		isAdmin, err := userService.IsAdmin(ctx, uintUserID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user"})
 			c.Abort()

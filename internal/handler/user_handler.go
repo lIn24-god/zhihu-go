@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 	"zhihu-go/internal/service"
-	"zhihu-go/pkg/jwtutil"
+	"zhihu-go/pkg/response"
 
 	"zhihu-go/internal/dto"
 
@@ -22,52 +22,55 @@ func NewUserHandler(userService service.UserService) *UserHandler {
 
 // Register 用户注册
 func (h *UserHandler) Register(c *gin.Context) {
-	var request = dto.UserRequest{}
+	var request = dto.LoginRequest{}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		response.Error(c, http.StatusBadRequest, "Invalid input")
 		return
 	}
 
-	user, err := h.userService.RegisterUser(request.Username, request.Password)
+	ctx := c.Request.Context()
+
+	user, err := h.userService.RegisterUser(ctx, request.Username, request.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to register a user"})
+		// 使用全局错误处理函数
+		HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, user)
+	resp := dto.RegisterResponse{
+		ID:       user.ID,
+		Username: user.Username,
+	}
+
+	response.Success(c, resp)
 }
 
 // Login 用户登录
 func (h *UserHandler) Login(c *gin.Context) {
-	var request = dto.UserRequest{}
+	var request = dto.LoginRequest{}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		response.Error(c, http.StatusBadRequest, "Invalid input")
 		return
 	}
 
-	user, err := h.userService.LoginUser(request.Username, request.Password)
+	ctx := c.Request.Context()
+	token, user, err := h.userService.LoginUser(ctx, request.Username, request.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "failed to login"})
+		HandleError(c, err)
 		return
 	}
 
-	// 生成JWT token
-	token, err := jwtutil.GenerateToken(user.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
-		"token":   token,
-		"user": gin.H{
-			"id":       user.ID,
-			"username": user.Username,
+	resp := dto.LoginResponse{
+		Token: token,
+		User: dto.UserBrief{
+			ID:       user.ID,
+			Username: user.Username,
 		},
-	})
+	}
+
+	response.Success(c, resp)
 }
 
 // UpdateProfile 更新用户信息
@@ -75,60 +78,57 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	// 获取已存储的 user_id（登录时已设置）
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		// 未认证，直接返回401，无需经过业务错误处理
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	// 类型断言，确保 userID 是 uint 类型
 	uintUserID, ok := userID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		// 类型断言失败，说明中间件设置的数据类型不正确，属于系统内部错误
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
 		return
 	}
 
 	var request dto.UpdateProfileRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, "Invalid input")
 		return
 	}
 
-	updatedUser, err := h.userService.UpdateProfile(uintUserID, &request)
+	ctx := c.Request.Context()
+
+	updatedUser, err := h.userService.UpdateProfile(ctx, uintUserID, &request)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Profile updated successfully",
-		"user":    updatedUser,
-	})
+	resp := dto.UpdateProfileResponse{
+		ID:       updatedUser.ID,
+		Username: updatedUser.Username,
+		Email:    updatedUser.Email,
+		Bio:      updatedUser.Bio,
+	}
+
+	response.Success(c, resp)
 }
 
 // MuteUser 禁言/解禁用户
 func (h *UserHandler) MuteUser(c *gin.Context) {
 	var req dto.MuteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, "Invalid input")
 		return
 	}
 
-	//检查目标用户是否存在
-	target, err := h.userService.GetUserProfile(req.UserID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+	ctx := c.Request.Context()
+
+	if err := h.userService.MuteUser(ctx, req.UserID, req.Hours); err != nil {
+		HandleError(c, err)
 		return
 	}
 
-	//检查目标是否为管理员
-	if target.IsAdmin {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "no admin"})
-		return
-	}
-
-	if err := h.userService.MuteUser(target.ID, req.Hours); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mute"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "mute successfully"})
+	response.Success(c, gin.H{"message": "User muted successfully"})
 }

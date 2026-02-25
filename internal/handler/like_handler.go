@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"errors"
 	"zhihu-go/internal/service"
+	"zhihu-go/pkg/response"
 
 	"zhihu-go/internal/dto"
 
@@ -26,31 +26,28 @@ func (h *LikeHandler) CreateLike(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	uintUserID, ok := userID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id"})
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
 		return
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid input"})
+		response.Error(c, http.StatusBadRequest, "Invalid input")
 		return
 	}
+
+	ctx := c.Request.Context()
 
 	//防刷机制
-	if err := h.likeService.CreateLike(request, uintUserID); err != nil {
-		switch {
-		case errors.Is(err, service.ErrTooFrequent):
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to like"})
-		}
+	if err := h.likeService.CreateLike(ctx, request, uintUserID); err != nil {
+		HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "create like successfully"})
+	response.Success(c, gin.H{"message": "create like successfully"})
 }

@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"zhihu-go/internal/service"
+	"zhihu-go/pkg/response"
 
 	"strconv"
 
@@ -31,36 +32,34 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	uintUserID, ok := userID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
 		return
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		response.Error(c, http.StatusBadRequest, "Invalid input")
 		return
 	}
 
 	// 从 gin.Context 获取请求的 context
 	ctx := c.Request.Context()
 
-	//检查是否被禁言
-	if err := h.userService.CheckMuted(uintUserID); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+	post, err := h.postService.CreatePost(ctx, uintUserID, &request)
+	if err != nil {
+		HandleError(c, err)
 		return
 	}
 
-	if _, err := h.postService.CreatePost(ctx, uintUserID, &request); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create a post"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"massage": "Create post successfully"})
+	response.Success(c, gin.H{
+		"post_id": post.ID,
+		"message": "Post created successfully",
+	})
 }
 
 // GetDraft 获取用户草稿
@@ -68,23 +67,25 @@ func (h *PostHandler) GetDraft(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	uintUserID, ok := userID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
 		return
 	}
 
-	result, err := h.postService.GetPost(uintUserID, "draft")
+	ctx := c.Request.Context()
+
+	resp, err := h.postService.GetPost(ctx, uintUserID, "draft")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get draft"})
+		HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": result})
+	response.Success(c, resp)
 }
 
 // GetPublishedPost 获取用户已发布文章
@@ -92,23 +93,25 @@ func (h *PostHandler) GetPublishedPost(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	uintUserID, ok := userID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
 		return
 	}
 
-	result, err := h.postService.GetPost(uintUserID, "published")
+	ctx := c.Request.Context()
+
+	resp, err := h.postService.GetPost(ctx, uintUserID, "published")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get published post"})
+		HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": result})
+	response.Success(c, resp)
 }
 
 // SearchPosts 处理文章搜索请求
@@ -116,7 +119,7 @@ func (h *PostHandler) SearchPosts(c *gin.Context) {
 	//获取查询参数
 	keyword := c.Query("q")
 	if keyword == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing keyword"})
+		response.Error(c, http.StatusBadRequest, "missing keyword")
 		return
 	}
 
@@ -131,13 +134,15 @@ func (h *PostHandler) SearchPosts(c *gin.Context) {
 		pageSize = 10
 	}
 
-	results, total, err := h.postService.SearchPosts(keyword, page, pageSize)
+	ctx := c.Request.Context()
+
+	results, total, err := h.postService.SearchPosts(ctx, keyword, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to search posts"})
+		HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response.Success(c, gin.H{
 		"data":     results,
 		"page":     page,
 		"pageSize": pageSize,
@@ -149,13 +154,13 @@ func (h *PostHandler) SearchPosts(c *gin.Context) {
 func (h *PostHandler) DeletePost(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	uintUserID, ok := userID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
 		return
 	}
 
@@ -163,16 +168,18 @@ func (h *PostHandler) DeletePost(c *gin.Context) {
 	postIDStr := c.Param("id")
 	postID, err := strconv.ParseUint(postIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+		response.Error(c, http.StatusBadRequest, "invalid post id")
 		return
 	}
 
-	if err := h.postService.SoftDeletePost(uint(postID), uintUserID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"errors": err.Error()})
+	ctx := c.Request.Context()
+
+	if err := h.postService.SoftDeletePost(ctx, uint(postID), uintUserID); err != nil {
+		HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "delete successfully"})
+	response.Success(c, gin.H{"message": "delete successfully"})
 }
 
 // RestorePost 恢复文章
@@ -180,13 +187,13 @@ func (h *PostHandler) RestorePost(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	uintUserID, ok := userID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
 		return
 	}
 
@@ -194,47 +201,51 @@ func (h *PostHandler) RestorePost(c *gin.Context) {
 	postIDStr := c.Param("id")
 	postID, err := strconv.ParseUint(postIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+		response.Error(c, http.StatusBadRequest, "Invalid post id")
 		return
 	}
 
-	if err := h.postService.RestorePost(uint(postID), uintUserID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	ctx := c.Request.Context()
+
+	if err := h.postService.RestorePost(ctx, uint(postID), uintUserID); err != nil {
+		HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "restore successfully"})
+	response.Success(c, gin.H{"message": "restore successfully"})
 }
 
 // GetTrash 获取用户回收站中的文章
 func (h *PostHandler) GetTrash(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	uintUserID, ok := userID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
 		return
 	}
 
-	trash, err := h.postService.GetUserTrash(uintUserID)
+	ctx := c.Request.Context()
+
+	trash, err := h.postService.GetUserTrash(ctx, uintUserID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get trash"})
+		HandleError(c, err)
 		return
 	}
 
-	var result []dto.PostResponse
+	var resp []dto.PostResponse
 	for _, f := range trash {
-		result = append(result, dto.PostResponse{
+		resp = append(resp, dto.PostResponse{
 			Title:    f.Title,
 			AuthorID: f.AuthorID,
 			Content:  f.Content,
 		})
 	}
-	c.JSON(http.StatusOK, gin.H{"trash": result})
+	response.Success(c, resp)
 }
 
 // UpdatePost 修改文章信息
@@ -242,13 +253,13 @@ func (h *PostHandler) UpdatePost(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	uintUserID, ok := userID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
 		return
 	}
 
@@ -256,13 +267,13 @@ func (h *PostHandler) UpdatePost(c *gin.Context) {
 	postIDStr := c.Param("id")
 	postID, err := strconv.ParseUint(postIDStr, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid post id"})
+		response.Error(c, http.StatusBadRequest, "Invalid post id")
 		return
 	}
 
 	var req dto.UpdatePostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, "Invalid input")
 		return
 	}
 
@@ -270,9 +281,9 @@ func (h *PostHandler) UpdatePost(c *gin.Context) {
 	ctx := c.Request.Context()
 
 	if err := h.postService.UpdatePost(ctx, uintUserID, uint(postID), req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update"})
+		HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "update successfully"})
+	response.Success(c, gin.H{"message": "update successfully"})
 }

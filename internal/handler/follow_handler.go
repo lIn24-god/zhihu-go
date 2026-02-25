@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 	"zhihu-go/internal/service"
+	"zhihu-go/pkg/response"
 
 	"zhihu-go/internal/dto"
 
@@ -27,38 +27,31 @@ func (h *FollowHandler) Follow(c *gin.Context) {
 	// 获取已存储的 user_id（登录时已设置）
 	followerID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	// 类型断言，确保 followerID 是 uint 类型
 	followerIDUint, ok := followerID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
 		return
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		response.Error(c, http.StatusBadRequest, "Invalid input")
 		return
 	}
 
-	err := h.followService.FollowUser(request.FolloweeID, followerIDUint)
+	ctx := c.Request.Context()
+
+	err := h.followService.FollowUser(ctx, request.FolloweeID, followerIDUint)
 	if err != nil {
-		switch {
-		case errors.Is(err, service.ErrUserNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"errors": err.Error()})
-		case errors.Is(err, service.ErrAlreadyFollowed):
-			c.JSON(http.StatusConflict, gin.H{"errors": err.Error()})
-		case errors.Is(err, service.ErrCannotFollowSelf):
-			c.JSON(http.StatusBadRequest, gin.H{"errors": err.Error()})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"errors": "failed to follow"})
-		}
+		HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Followed successfully"})
+	response.Success(c, gin.H{"message": "Followed successfully"})
 }
 
 // Unfollow 取关
@@ -68,28 +61,30 @@ func (h *FollowHandler) Unfollow(c *gin.Context) {
 	// 获取已存储的 user_id（登录时已设置）
 	followerID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	// 类型断言，确保 followerID 是 uint 类型
 	followerIDUint, ok := followerID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
 		return
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		response.Error(c, http.StatusBadRequest, "Invalid input")
 		return
 	}
 
-	if err := h.followService.UnfollowUser(request.FolloweeID, followerIDUint); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unfollow user"})
+	ctx := c.Request.Context()
+
+	if err := h.followService.UnfollowUser(ctx, request.FolloweeID, followerIDUint); err != nil {
+		HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "unfollowed successfully"})
+	response.Success(c, gin.H{"message": "Unfollowed successfully"})
 }
 
 // GetFollowers 获取用户粉丝列表
@@ -98,24 +93,26 @@ func (h *FollowHandler) GetFollowers(c *gin.Context) {
 	// 获取已存储的 user_id（登录时已设置）
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	// 类型断言，确保 userID 是 uint 类型
 	userIDUint, ok := userID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
 		return
 	}
 
-	followers, err := h.followService.GetFollowers(userIDUint)
+	ctx := c.Request.Context()
+
+	followers, err := h.followService.GetFollowers(ctx, userIDUint)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to get followers"})
+		HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response.Success(c, gin.H{
 		"followers": followers,
 		"total":     len(followers),
 	})
@@ -126,24 +123,26 @@ func (h *FollowHandler) GetFollowees(c *gin.Context) {
 	// 获取已存储的 user_id（登录时已设置）
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
 		return
 	}
 
 	// 类型断言，确保 userID 是 uint 类型
 	userIDUint, ok := userID.(uint)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
 		return
 	}
 
-	followees, err := h.followService.GetFollowees(userIDUint)
+	ctx := c.Request.Context()
+
+	followees, err := h.followService.GetFollowees(ctx, userIDUint)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get followees"})
+		HandleError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	response.Success(c, gin.H{
 		"followees": followees,
 		"total":     len(followees),
 	})

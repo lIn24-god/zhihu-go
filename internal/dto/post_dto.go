@@ -7,6 +7,7 @@ type PostRequest struct {
 }
 
 type PostResponse struct {
+	ID       uint   `json:"ID"`
 	Title    string `json:"title"`
 	AuthorID uint   `json:"authorID"`
 	Content  string `json:"content"`

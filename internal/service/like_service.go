@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"zhihu-go/internal/model"
 	"zhihu-go/pkg/ratelimit"
 
@@ -13,7 +14,7 @@ import (
 
 // LikeService 定义点赞相关的数据访问接口
 type LikeService interface {
-	CreateLike(req dto.LikeRequest, userID uint) error
+	CreateLike(ctx context.Context, req dto.LikeRequest, userID uint) error
 }
 
 // 结构体定义
@@ -31,7 +32,7 @@ func NewLikeService(likeDAO dao.LikeDAO, rdb *redis.Client) LikeService {
 }
 
 // CreateLike 点赞文章
-func (s *likeService) CreateLike(req dto.LikeRequest, userID uint) error {
+func (s *likeService) CreateLike(ctx context.Context, req dto.LikeRequest, userID uint) error {
 	like := model.Like{
 		PostID: req.PostID,
 		UserID: userID,
@@ -46,5 +47,5 @@ func (s *likeService) CreateLike(req dto.LikeRequest, userID uint) error {
 		return ErrTooFrequent
 	}
 
-	return s.likeDAO.CreateLike(&like)
+	return s.likeDAO.CreateLike(ctx, &like)
 }

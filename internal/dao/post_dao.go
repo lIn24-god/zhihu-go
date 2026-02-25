@@ -10,14 +10,14 @@ import (
 // PostDAO 定义文章数据访问接口
 type PostDAO interface {
 	CreatePost(ctx context.Context, post *model.Post) error
-	GetPost(authorID uint, status string) ([]model.Post, error)
+	GetPost(ctx context.Context, authorID uint, status string) ([]model.Post, error)
 	GetPostByID(ctx context.Context, postID uint) (*model.Post, error)
-	GetPostByIDWithDeleted(postID uint) (*model.Post, error)
-	SearchPost(keyword string, page, pageSize int) ([]model.Post, int64, error)
-	SoftDeletePost(postID uint) error
-	RestorePost(postID uint) error
-	GetUserDeletedPosts(userID uint) ([]model.Post, error)
-	UpdatePost(post *model.Post) error
+	GetPostByIDWithDeleted(ctx context.Context, postID uint) (*model.Post, error)
+	SearchPost(ctx context.Context, keyword string, page, pageSize int) ([]model.Post, int64, error)
+	SoftDeletePost(ctx context.Context, postID uint) error
+	RestorePost(ctx context.Context, postID uint) error
+	GetUserDeletedPosts(ctx context.Context, userID uint) ([]model.Post, error)
+	UpdatePost(ctx context.Context, post *model.Post) error
 }
 
 // 结构体定义
@@ -34,9 +34,9 @@ func (u *postDAO) CreatePost(ctx context.Context, post *model.Post) error {
 }
 
 // GetPost 获取用户文章
-func (u *postDAO) GetPost(authorID uint, status string) ([]model.Post, error) {
+func (u *postDAO) GetPost(ctx context.Context, authorID uint, status string) ([]model.Post, error) {
 	var posts []model.Post
-	err := u.db.Where("author_id = ? AND status = ?", authorID, status).Find(&posts).Error
+	err := u.db.WithContext(ctx).Where("author_id = ? AND status = ?", authorID, status).Find(&posts).Error
 	return posts, err
 }
 
@@ -48,21 +48,21 @@ func (u *postDAO) GetPostByID(ctx context.Context, postID uint) (*model.Post, er
 }
 
 // GetPostByIDWithDeleted 通过postID获取文章(包括已删除的)
-func (u *postDAO) GetPostByIDWithDeleted(postID uint) (*model.Post, error) {
+func (u *postDAO) GetPostByIDWithDeleted(ctx context.Context, postID uint) (*model.Post, error) {
 	var post model.Post
-	err := u.db.Unscoped().First(&post, postID).Error
+	err := u.db.WithContext(ctx).Unscoped().First(&post, postID).Error
 	return &post, err
 }
 
 // SearchPost 使用全文索引搜索文章，并返回文章列表和总数
-func (u *postDAO) SearchPost(keyword string, page, pageSize int) ([]model.Post, int64, error) {
+func (u *postDAO) SearchPost(ctx context.Context, keyword string, page, pageSize int) ([]model.Post, int64, error) {
 	var posts []model.Post
 	var total int64
 
 	offSet := (page - 1) * pageSize
 
 	//用全文索引构建查询
-	query := u.db.Where("MATCH(title, content) AGAINST(? IN NATURAL LANGUAGE MODE)", keyword)
+	query := u.db.WithContext(ctx).Where("MATCH(title, content) AGAINST(? IN NATURAL LANGUAGE MODE)", keyword)
 	if err := query.Model(&model.Post{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -82,24 +82,24 @@ func (u *postDAO) SearchPost(keyword string, page, pageSize int) ([]model.Post, 
 }
 
 // SoftDeletePost 软删除文章
-func (u *postDAO) SoftDeletePost(postID uint) error {
-	return u.db.Delete(&model.Post{}, postID).Error
+func (u *postDAO) SoftDeletePost(ctx context.Context, postID uint) error {
+	return u.db.WithContext(ctx).Delete(&model.Post{}, postID).Error
 }
 
 // RestorePost 恢复软删除的文章
-func (u *postDAO) RestorePost(postID uint) error {
-	return u.db.Model(&model.Post{}).Unscoped().Where("id = ?", postID).
+func (u *postDAO) RestorePost(ctx context.Context, postID uint) error {
+	return u.db.WithContext(ctx).Model(&model.Post{}).Unscoped().Where("id = ?", postID).
 		Update("deleted_at", nil).Error
 }
 
 // GetUserDeletedPosts 获取用户已删除的文章
-func (u *postDAO) GetUserDeletedPosts(userID uint) ([]model.Post, error) {
+func (u *postDAO) GetUserDeletedPosts(ctx context.Context, userID uint) ([]model.Post, error) {
 	var posts []model.Post
-	err := u.db.Unscoped().Where("author_id = ? AND deleted_at IS NOT NULL", userID).Find(&posts).Error
+	err := u.db.WithContext(ctx).Unscoped().Where("author_id = ? AND deleted_at IS NOT NULL", userID).Find(&posts).Error
 	return posts, err
 }
 
 // UpdatePost 更新文章信息
-func (u *postDAO) UpdatePost(post *model.Post) error {
-	return u.db.Save(&post).Error
+func (u *postDAO) UpdatePost(ctx context.Context, post *model.Post) error {
+	return u.db.WithContext(ctx).Save(&post).Error
 }

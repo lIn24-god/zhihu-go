@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"time"
 	"zhihu-go/config"
 	"zhihu-go/internal/cache"
 	"zhihu-go/internal/dao"
@@ -65,10 +67,10 @@ func main() {
 
 	//创建 Service 实例，注入 DAO
 	userService := service.NewUserService(userDAO)
-	postService := service.NewPostService(postDAO, postCache, bloomFilter)
+	postService := service.NewPostService(postDAO, userService, postCache, bloomFilter)
 	likeService := service.NewLikeService(likeDAO, rdb)
 	followService := service.NewFollowService(followDAO, userDAO)
-	commentService := service.NewCommentService(commentDAO, rdb)
+	commentService := service.NewCommentService(commentDAO, userService, rdb)
 
 	//创建 Handler 实例，注入 Service
 	userHandler := handler.NewUserHandler(userService)
@@ -89,8 +91,12 @@ func main() {
 	adminUser := config.Config.Admin.Username
 	adminPass := config.Config.Admin.Password
 
+	// 创建带超时的 context（5秒超时）
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel() // 确保资源释放
+
 	// 调用初始化管理员
-	if err := userService.InitAdmin(adminUser, adminPass); err != nil {
+	if err := userService.InitAdmin(ctx, adminUser, adminPass); err != nil {
 		log.Fatalf("初始化管理员失败: %v", err)
 	}
 
