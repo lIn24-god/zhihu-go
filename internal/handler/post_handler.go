@@ -62,6 +62,32 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 	})
 }
 
+// GetPost 获取用户文章
+func (h *PostHandler) GetPost(c *gin.Context) {
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	uintUserID, ok := userID.(uint)
+	if !ok {
+		response.Error(c, http.StatusInternalServerError, "Invalid user ID format")
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	resp, err := h.postService.GetPostByID(ctx, uintUserID)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+
+	response.Success(c, resp)
+}
+
 // GetDraft 获取用户草稿
 func (h *PostHandler) GetDraft(c *gin.Context) {
 

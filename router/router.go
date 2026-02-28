@@ -63,6 +63,7 @@ func (r *Router) SetUp(engine *gin.Engine) {
 		protected.GET("/post/trash", r.postHandler.GetTrash)
 		protected.PATCH("/post/:id/update", r.postHandler.UpdatePost)
 		protected.POST("/like", r.likeHandler.CreateLike)
+		protected.GET("/post/:id/get", r.postHandler.GetPost)
 
 		//管理员路由
 		admin := protected.Group("/admin")

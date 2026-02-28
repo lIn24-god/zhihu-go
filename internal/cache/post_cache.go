@@ -65,9 +65,9 @@ func (c *postCache) Set(ctx context.Context, post *model.Post) error {
 		return err
 	}
 
-	// 随机偏移量：基础 TTL 的 ±20%
+	// 随机偏移量：基础 TTL 的 ±10%
 	offset := time.Duration(rand.Intn(int(c.baseTTL/5))) - c.baseTTL/10
 	ttl := c.baseTTL + offset
-	
+
 	return c.client.Set(ctx, c.Key(post.ID), data, ttl).Err()
 }
