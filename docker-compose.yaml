@@ -1,0 +1,75 @@
+
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: zhihu-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456          # 请修改！
+      MYSQL_DATABASE: zhihu
+      MYSQL_USER: zhihu_user
+      MYSQL_PASSWORD: zhihu_pass                # 请修改！
+    ports:
+      - "3306:3306"        # 可选，方便宿主机连接调试
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - zhihu-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: zhihu-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"        # 可选
+    volumes:
+      - redis_data:/data
+    networks:
+      - zhihu-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: zhihu-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"        # 映射宿主机端口，可按需修改
+    environment:
+      # MySQL 配置（注意前缀 ZHIHU_）
+      - ZHIHU_MYSQL_DSN=zhihu_user:zhihu_pass@tcp(mysql:3306)/zhihu?charset=utf8mb4&parseTime=True&loc=Local
+      - ZHIHU_MYSQL_MAX_OPEN_CONNS=20
+      - ZHIHU_MYSQL_MAX_IDLE_CONNS=5
+
+      # Redis 配置
+      - ZHIHU_REDIS_ADDR=redis:6379
+      - ZHIHU_REDIS_PASSWORD=               # 如果没有密码则留空
+      - ZHIHU_REDIS_DB=0
+
+      # 管理员配置（可选，用于初始化）
+      - ZHIHU_ADMIN_USERNAME=admin
+      - ZHIHU_ADMIN_PASSWORD=admin123        # 请修改！
+
+      # 其他环境变量...
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - zhihu-network
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  zhihu-network:
+    driver: bridge
