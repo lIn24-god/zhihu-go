@@ -9,7 +9,7 @@ services:
       MYSQL_ROOT_PASSWORD: root123456          # 请修改！
       MYSQL_DATABASE: zhihu
       MYSQL_USER: zhihu_user
-      MYSQL_PASSWORD: zhihu_pass                # 请修改！
+      MYSQL_PASSWORD: 123456               # 请修改！
     ports:
       - "3306:3306"        # 可选，方便宿主机连接调试
     volumes:
@@ -44,7 +44,7 @@ services:
       - "8080:8080"        # 映射宿主机端口，可按需修改
     environment:
       # MySQL 配置（注意前缀 ZHIHU_）
-      - ZHIHU_MYSQL_DSN=zhihu_user:zhihu_pass@tcp(mysql:3306)/zhihu?charset=utf8mb4&parseTime=True&loc=Local
+      - "ZHIHU_MYSQL_DSN=zhihu_user:123456@tcp(mysql:3306)/zhihu?charset=utf8mb4&parseTime=True&loc=Local"
       - ZHIHU_MYSQL_MAX_OPEN_CONNS=20
       - ZHIHU_MYSQL_MAX_IDLE_CONNS=5
 

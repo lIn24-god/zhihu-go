@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 	"zhihu-go/config"
 	"zhihu-go/internal/cache"
@@ -37,9 +38,12 @@ func main() {
 	//连接到数据库
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		fmt.Println("failed to connect database:", err)
-		return
+		log.Printf("Failed to connect to database: %v", err)
+		// 可以选择 panic 或 os.Exit，但为了容器不立即重启，可以让程序 sleep 一段时间再退出
+		time.Sleep(10 * time.Second)
+		os.Exit(1)
 	}
+
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,

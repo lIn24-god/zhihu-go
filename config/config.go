@@ -17,20 +17,20 @@ type AppConfig struct {
 }
 
 type MysqlConfig struct {
-	DSN          string
-	MaxOpenConns int
-	MaxIdleConns int
+	DSN          string `mapstructure:"dsn"`            // 添加标签
+	MaxOpenConns int    `mapstructure:"max_open_conns"` // 添加标签
+	MaxIdleConns int    `mapstructure:"max_idle_conns"` // 添加标签
 }
 
 type RedisConfig struct {
-	Addr     string
-	Password string
-	DB       int
+	Addr     string `mapstructure:"addr"`     // 添加标签
+	Password string `mapstructure:"password"` // 添加标签
+	DB       int    `mapstructure:"db"`       // 添加标签
 }
 
 type AdminConfig struct {
-	Username string
-	Password string
+	Username string `mapstructure:"username"` // 添加标签
+	Password string `mapstructure:"password"` // 添加标签
 }
 
 func Init() {
@@ -52,6 +52,16 @@ func Init() {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
+	// **手动绑定环境变量到配置键**（关键步骤）
+	viper.BindEnv("mysql.dsn", "ZHIHU_MYSQL_DSN")
+	viper.BindEnv("mysql.max_open_conns", "ZHIHU_MYSQL_MAX_OPEN_CONNS")
+	viper.BindEnv("mysql.max_idle_conns", "ZHIHU_MYSQL_MAX_IDLE_CONNS")
+	viper.BindEnv("redis.addr", "ZHIHU_REDIS_ADDR")
+	viper.BindEnv("redis.password", "ZHIHU_REDIS_PASSWORD")
+	viper.BindEnv("redis.db", "ZHIHU_REDIS_DB")
+	viper.BindEnv("admin.username", "ZHIHU_ADMIN_USERNAME")
+	viper.BindEnv("admin.password", "ZHIHU_ADMIN_PASSWORD")
+
 	// 设置合理地默认值（防止某些环境变量缺失）
 	viper.SetDefault("mysql.max_open_conns", 10)
 	viper.SetDefault("mysql.max_idle_conns", 5)
@@ -63,6 +73,7 @@ func Init() {
 		log.Fatalf("Unable to decode into struct %v", err)
 	}
 
-	// 可选：打印关键配置（调试用）
 	log.Println("Configuration loaded successfully")
+	log.Printf("Loaded MySQL DSN: %s", Config.Mysql.DSN)
+	log.Printf("Loaded Redis Addr: %s", Config.Redis.Addr)
 }
