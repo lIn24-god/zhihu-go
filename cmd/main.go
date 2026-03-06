@@ -13,6 +13,7 @@ import (
 	"zhihu-go/internal/model"
 	"zhihu-go/internal/service"
 	"zhihu-go/pkg/bloom"
+	"zhihu-go/pkg/logger"
 	"zhihu-go/router"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,14 @@ import (
 func main() {
 	//初始化配置
 	config.Init()
+
+	// 2. 初始化日志（使用 config 中的日志配置）
+	if err := logger.Init(config.Config.Log.Level, config.Config.Log.Output); err != nil {
+		// 如果日志初始化失败，可以暂时用标准库打印并退出，或者 panic
+		panic("初始化日志失败: " + err.Error())
+	}
+	// 确保程序退出前日志全部写入
+	defer logger.L().Sync()
 
 	//获取mysql配置
 	mysqlConfig := config.Config.Mysql
@@ -38,7 +47,7 @@ func main() {
 	//连接到数据库
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Printf("Failed to connect to database: %v", err)
+		logger.S().Fatalw("数据库连接失败", "dsn", dsn, "error", err)
 		// 可以选择 panic 或 os.Exit，但为了容器不立即重启，可以让程序 sleep 一段时间再退出
 		time.Sleep(10 * time.Second)
 		os.Exit(1)
@@ -49,6 +58,11 @@ func main() {
 		Password: password,
 		DB:       db1,
 	})
+
+	logger.S().Infow("数据库和 Redis 初始化完成",
+		"mysql_dsn", config.Config.Mysql.DSN,
+		"redis_addr", config.Config.Redis.Addr,
+	)
 
 	//自动迁移
 	if err := db.AutoMigrate(&model.User{}, &model.Post{}, &model.Follow{}, &model.Comment{}, &model.Like{}); err != nil {

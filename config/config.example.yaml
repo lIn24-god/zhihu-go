@@ -11,3 +11,7 @@ redis:
 admin:
   username: "your_admin_username"
   password: "your_admin_password"
+
+log:
+  level: "info"
+  output: ["stdout", "./logs/app.log"]   # 输出到控制台和文件

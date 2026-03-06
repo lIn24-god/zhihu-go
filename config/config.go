@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"zhihu-go/pkg/logger"
 
 	"github.com/spf13/viper"
 )
@@ -14,6 +15,7 @@ type AppConfig struct {
 	Mysql MysqlConfig
 	Redis RedisConfig
 	Admin AdminConfig
+	Log   LogConfig
 }
 
 type MysqlConfig struct {
@@ -31,6 +33,11 @@ type RedisConfig struct {
 type AdminConfig struct {
 	Username string `mapstructure:"username"` // 添加标签
 	Password string `mapstructure:"password"` // 添加标签
+}
+
+type LogConfig struct {
+	Level  string   `mapstructure:"level"`
+	Output []string `mapstructure:"output"` // 例如 ["stdout", "./logs/app.log"]
 }
 
 func Init() {
@@ -61,11 +68,15 @@ func Init() {
 	viper.BindEnv("redis.db", "ZHIHU_REDIS_DB")
 	viper.BindEnv("admin.username", "ZHIHU_ADMIN_USERNAME")
 	viper.BindEnv("admin.password", "ZHIHU_ADMIN_PASSWORD")
+	viper.BindEnv("log.level", "ZHIHU_LOG_LEVEL")
+	viper.BindEnv("log.output", "ZHIHU_LOG_OUTPUT")
 
 	// 设置合理地默认值（防止某些环境变量缺失）
 	viper.SetDefault("mysql.max_open_conns", 10)
 	viper.SetDefault("mysql.max_idle_conns", 5)
 	viper.SetDefault("redis.db", 0)
+	viper.SetDefault("log.level", "info")
+	viper.SetDefault("log.output", []string{"stdout"})
 
 	// 将配置内容映射到结构体
 	Config = &AppConfig{}
@@ -73,7 +84,8 @@ func Init() {
 		log.Fatalf("Unable to decode into struct %v", err)
 	}
 
-	log.Println("Configuration loaded successfully")
-	log.Printf("Loaded MySQL DSN: %s", Config.Mysql.DSN)
-	log.Printf("Loaded Redis Addr: %s", Config.Redis.Addr)
+	logger.S().Infow("Configuration loaded successfully",
+		"mysql_dsn", Config.Mysql.DSN,
+		"redis_addr", Config.Redis.Addr,
+	)
 }
