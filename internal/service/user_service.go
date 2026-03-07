@@ -73,14 +73,14 @@ func (s *userService) RegisterUser(ctx context.Context, username, password strin
 		return nil, err // 数据库错误（系统错误）
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := encrypt.HashPassword(password)
 	if err != nil {
 		return nil, err
 	}
 
 	user := &model.User{
 		Username: username,
-		Password: string(hashedPassword),
+		Password: hashedPassword,
 	}
 
 	if err := s.userDAO.CreateUser(ctx, user); err != nil {
