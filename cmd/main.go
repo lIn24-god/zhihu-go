@@ -65,7 +65,11 @@ func main() {
 	)
 
 	//自动迁移
-	if err := db.AutoMigrate(&model.User{}, &model.Post{}, &model.Follow{}, &model.Comment{}, &model.Like{}); err != nil {
+	if err := db.AutoMigrate(&model.User{},
+		&model.Post{},
+		&model.Comment{},
+		&model.Like{},
+		&model.UserRelation{}); err != nil {
 		fmt.Println("Failed to run migrate:", err)
 		return
 	}
