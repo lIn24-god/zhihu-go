@@ -16,12 +16,14 @@ type Router struct {
 	followHandler  *handler.FollowHandler
 	commentHandler *handler.CommentHandler
 	userService    service.UserService
+	feedHandler    *handler.FeedHandler
 }
 
 // NewRouter 构造函数
 func NewRouter(userHandler *handler.UserHandler, postHandler *handler.PostHandler,
 	likeHandler *handler.LikeHandler, followHandler *handler.FollowHandler,
-	commentHandler *handler.CommentHandler, userService service.UserService) *Router {
+	commentHandler *handler.CommentHandler, userService service.UserService,
+	feedHandler *handler.FeedHandler) *Router {
 	return &Router{
 		userHandler:    userHandler,
 		postHandler:    postHandler,
@@ -29,6 +31,7 @@ func NewRouter(userHandler *handler.UserHandler, postHandler *handler.PostHandle
 		followHandler:  followHandler,
 		commentHandler: commentHandler,
 		userService:    userService,
+		feedHandler:    feedHandler,
 	}
 }
 
@@ -64,6 +67,7 @@ func (r *Router) SetUp(engine *gin.Engine) {
 		protected.PATCH("/post/:id/update", r.postHandler.UpdatePost)
 		protected.POST("/like", r.likeHandler.CreateLike)
 		protected.GET("/post/:id/get", r.postHandler.GetPost)
+		protected.GET("/feed", r.feedHandler.GetFeed)
 
 		//管理员路由
 		admin := protected.Group("/admin")

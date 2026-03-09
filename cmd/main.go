@@ -69,7 +69,8 @@ func main() {
 		&model.Post{},
 		&model.Comment{},
 		&model.Like{},
-		&model.UserRelation{}); err != nil {
+		&model.UserRelation{},
+		&model.Timeline{}); err != nil {
 		fmt.Println("Failed to run migrate:", err)
 		return
 	}
@@ -80,6 +81,7 @@ func main() {
 	likeDAO := dao.NewLikeDAO(db)
 	followDAO := dao.NewFollowDAO(db)
 	commentDAO := dao.NewCommentDAO(db)
+	timelineDAO := dao.NewTimelineDAO(db)
 
 	// 初始化缓存
 	postCache := cache.NewPostCache(rdb)
@@ -88,8 +90,15 @@ func main() {
 	bloomFilter := bloom.NewRedisBloom(rdb)
 
 	//创建 Service 实例，注入 DAO
+	feedService := service.NewFeedService(
+		followDAO,
+		timelineDAO,
+		postDAO,
+		userDAO,
+		5, // worker 数量
+	)
 	userService := service.NewUserService(userDAO)
-	postService := service.NewPostService(postDAO, userService, postCache, bloomFilter)
+	postService := service.NewPostService(postDAO, userService, postCache, bloomFilter, feedService)
 	likeService := service.NewLikeService(likeDAO, rdb)
 	followService := service.NewFollowService(followDAO, userDAO)
 	commentService := service.NewCommentService(commentDAO, userService, rdb)
@@ -100,13 +109,14 @@ func main() {
 	likeHandler := handler.NewLikeHandler(likeService)
 	followHandler := handler.NewFollowHandler(followService)
 	commentHandler := handler.NewCommentHandler(commentService, userService)
+	feedHandler := handler.NewFeedHandler(feedService)
 
 	//设置路由
 	r := gin.Default()
 
 	//使用 Router 结构体
 	routerInstance := router.NewRouter(userHandler, postHandler, likeHandler,
-		followHandler, commentHandler, userService) // 传入需要的 handler
+		followHandler, commentHandler, userService, feedHandler) // 传入需要的 handler
 	routerInstance.SetUp(r)
 
 	// 使用配置中的管理员信息

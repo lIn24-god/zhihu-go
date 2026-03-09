@@ -12,6 +12,7 @@ type PostDAO interface {
 	CreatePost(ctx context.Context, post *model.Post) error
 	GetPost(ctx context.Context, authorID uint, status string) ([]model.Post, error)
 	GetPostByID(ctx context.Context, postID uint) (*model.Post, error)
+	GetPostsByIDs(ctx context.Context, postIDs []uint) ([]model.Post, error)
 	GetPostByIDWithDeleted(ctx context.Context, postID uint) (*model.Post, error)
 	SearchPost(ctx context.Context, keyword string, page, pageSize int) ([]model.Post, int64, error)
 	SoftDeletePost(ctx context.Context, postID uint) error
@@ -45,6 +46,13 @@ func (u *postDAO) GetPostByID(ctx context.Context, postID uint) (*model.Post, er
 	var post model.Post
 	err := u.db.WithContext(ctx).First(&post, postID).Error
 	return &post, err
+}
+
+// GetPostsByIDs 靠一堆id获取一堆文章
+func (u *postDAO) GetPostsByIDs(ctx context.Context, postIDs []uint) ([]model.Post, error) {
+	var result []model.Post
+	err := u.db.WithContext(ctx).Where("id IN ?", postIDs).Find(&result).Error
+	return result, err
 }
 
 // GetPostByIDWithDeleted 通过postID获取文章(包括已删除的)

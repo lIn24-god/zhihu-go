@@ -37,15 +37,18 @@ type postService struct {
 	postCache   cache.PostCache
 	bloom       bloom.Filter
 	sfGroup     singleflight.Group
+	feedService FeedService
 }
 
 // NewPostService 构造函数
-func NewPostService(postDAO dao.PostDAO, userService UserService, postCache cache.PostCache, bloom bloom.Filter) PostService {
+func NewPostService(postDAO dao.PostDAO, userService UserService,
+	postCache cache.PostCache, bloom bloom.Filter, feedService FeedService) PostService {
 	return &postService{
 		postDAO:     postDAO,
 		userService: userService,
 		postCache:   postCache,
 		bloom:       bloom,
+		feedService: feedService,
 	}
 }
 
@@ -90,6 +93,9 @@ func (s *postService) CreatePost(ctx context.Context, userID uint, req *dto.Post
 	if err := s.postCache.Set(ctx, post); err != nil {
 		log.Printf("cache set error: %v", err)
 	}
+
+	// 7. 异步推送给粉丝
+	s.feedService.PushPostAsync(ctx, post.ID, userID)
 
 	return post, nil
 }
