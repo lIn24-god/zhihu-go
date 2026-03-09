@@ -62,16 +62,20 @@
 ## 快速开始（示例）
 1. 克隆项目:  
 
-`git clone https://github.com/yourname/zhihu-go.git`
+`git clone https://github.com/yourname/zhihu-go.git`  
+
 2. 配置:  
 
-`复制 config/config.example.yaml 为 config/config.yaml，修改数据库、Redis 等配置。`
+`复制 config/config.example.yaml 为 config/config.yaml，修改数据库、Redis 等配置。`  
+
 3. 启动依赖:  
 
-`docker-compose up -d mysql redis（需安装 Docker）`
+`docker-compose up -d mysql redis（需安装 Docker）`  
+
 4. 运行项目:  
 
-`go run cmd/main.go`
+`go run cmd/main.go`  
+
 5. 访问接口:
 
 `接口文档见 Apifox 链接，默认地址 http://localhost:8080`
