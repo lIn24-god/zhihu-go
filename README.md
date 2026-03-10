@@ -56,7 +56,7 @@
 | `router/` | 路由注册，集中管理所有路由及中间件 |
 | `Dockerfile` | Docker 构建文件 |
 | `docker-compose.yaml` | 本地开发环境编排（MySQL、Redis） |
-| `go.mod` |
+| `go.mod` | 环境依赖 |
 | `README` |
 
 ## 快速开始（示例）

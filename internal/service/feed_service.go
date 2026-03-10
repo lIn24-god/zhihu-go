@@ -20,8 +20,8 @@ type FeedService interface {
 type feedService struct {
 	followDAO   dao.FollowDAO
 	timelineDAO dao.TimelineDAO
-	postDAO     dao.PostDAO // 假设已有
-	userDAO     dao.UserDAO // 假设已有
+	postDAO     dao.PostDAO
+	userDAO     dao.UserDAO
 
 	// 异步推送队列
 	taskChan    chan *pushTask
@@ -145,7 +145,7 @@ func (s *feedService) GetUserFeed(ctx context.Context, userID uint, page, pageSi
 	}
 
 	// 批量获取文章信息
-	posts, err := s.postDAO.GetPostsByIDs(ctx, postIDs) // 假设 PostDAO 有这个批量方法
+	posts, err := s.postDAO.GetPostsByIDs(ctx, postIDs)
 	if err != nil {
 		return nil, 0, err
 	}
