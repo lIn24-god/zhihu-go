@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 	"zhihu-go/internal/dao"
 	"zhihu-go/internal/dto"
@@ -11,6 +12,7 @@ import (
 	"zhihu-go/pkg/encrypt"
 	"zhihu-go/pkg/jwtutil"
 
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -19,22 +21,28 @@ import (
 type UserService interface {
 	InitAdmin(ctx context.Context, adminUsername, adminPassword string) error
 	RegisterUser(ctx context.Context, username, password string) (*model.User, error)
-	LoginUser(ctx context.Context, username, password string) (string, *model.User, error)
+	LoginUser(ctx context.Context, username, password string) (string, string, *model.User, error)
 	GetUserProfile(ctx context.Context, userID uint) (*model.User, error)
 	UpdateProfile(ctx context.Context, userID uint, req *dto.UpdateProfileRequest) (*model.User, error)
 	MuteUser(ctx context.Context, targetUserID uint, hours int) error
 	CheckMuted(ctx context.Context, userID uint) error
 	IsAdmin(ctx context.Context, userID uint) (bool, error)
+	Logout(ctx context.Context, userID uint) error
+	RefreshToken(ctx context.Context, refreshToken string) (string, string, error)
 }
 
 // userService 结构体定义
 type userService struct {
-	userDAO dao.UserDAO
+	userDAO     dao.UserDAO
+	redisClient *redis.Client
 }
 
 // NewUserService 构造函数
-func NewUserService(userDAO dao.UserDAO) UserService {
-	return &userService{userDAO: userDAO}
+func NewUserService(userDAO dao.UserDAO, redisClient *redis.Client) UserService {
+	return &userService{
+		userDAO:     userDAO,
+		redisClient: redisClient,
+	}
 }
 
 // InitAdmin 初始化管理员账号
@@ -90,31 +98,83 @@ func (s *userService) RegisterUser(ctx context.Context, username, password strin
 	return user, err
 }
 
-// LoginUser  用户登录
-func (s *userService) LoginUser(ctx context.Context, username, password string) (string, *model.User, error) {
-	// 1. 查询用户
+// LoginUser 登录，生成双 token 并存储 refresh token
+func (s *userService) LoginUser(ctx context.Context, username, password string) (string, string, *model.User, error) {
 	user, err := s.userDAO.GetUserByUsername(ctx, username)
 	if err != nil {
-		// 区分“用户不存在”和其他数据库错误
-		// 注意：GORM 返回 gorm.ErrRecordNotFound 表示记录不存在
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", nil, ErrUserNotFound
+			return "", "", nil, ErrUserNotFound
 		}
-		return "", nil, err // 其他数据库错误（如连接失败），属于系统错误，将走 default 分支
+		return "", "", nil, err
 	}
 
-	// 2. 验证密码
 	if !encrypt.CheckPasswordHash(password, user.Password) {
-		return "", nil, ErrInvalidPassword
+		return "", "", nil, ErrInvalidPassword
 	}
 
-	// 3. 生成 JWT token
-	token, err := jwtutil.GenerateToken(user.ID)
+	// 生成 AccessToken 和 RefreshToken
+	accessToken, err := jwtutil.GenerateToken(user.ID, jwtutil.AccessToken)
 	if err != nil {
-		return "", nil, err // token 生成失败，系统错误
+		return "", "", nil, err
+	}
+	refreshToken, err := jwtutil.GenerateToken(user.ID, jwtutil.RefreshToken)
+	if err != nil {
+		return "", "", nil, err
 	}
 
-	return token, user, nil
+	// 存储 refresh token 到 Redis，过期时间 7 天
+	key := "refresh:" + strconv.Itoa(int(user.ID))
+	if err := s.redisClient.Set(ctx, key, refreshToken, 7*24*time.Hour).Err(); err != nil {
+		return "", "", nil, err
+	}
+
+	return accessToken, refreshToken, user, nil
+}
+
+// RefreshToken 刷新 access token，同时轮换 refresh token
+func (s *userService) RefreshToken(ctx context.Context, refreshToken string) (string, string, error) {
+	claims, err := jwtutil.ParseToken(refreshToken)
+	if err != nil {
+		return "", "", ErrInvalidRefreshToken
+	}
+	if claims.Type != jwtutil.RefreshToken {
+		return "", "", ErrInvalidRefreshToken
+	}
+
+	key := "refresh:" + strconv.Itoa(int(claims.UserID))
+	storedToken, err := s.redisClient.Get(ctx, key).Result()
+	if err == redis.Nil {
+		return "", "", ErrRefreshTokenExpired
+	} else if err != nil {
+		return "", "", err
+	}
+
+	if storedToken != refreshToken {
+		return "", "", ErrInvalidRefreshToken
+	}
+
+	// 生成新的 token 对
+	newAccessToken, err := jwtutil.GenerateToken(claims.UserID, jwtutil.AccessToken)
+	if err != nil {
+		return "", "", err
+	}
+	newRefreshToken, err := jwtutil.GenerateToken(claims.UserID, jwtutil.RefreshToken)
+	if err != nil {
+		return "", "", err
+	}
+
+	// 更新 Redis 中的 refresh token（轮换）
+	if err := s.redisClient.Set(ctx, key, newRefreshToken, 7*24*time.Hour).Err(); err != nil {
+		return "", "", err
+	}
+
+	return newAccessToken, newRefreshToken, nil
+}
+
+// Logout 登出，删除 Redis 中的 refresh token
+func (s *userService) Logout(ctx context.Context, userID uint) error {
+	key := "refresh:" + strconv.Itoa(int(userID))
+	return s.redisClient.Del(ctx, key).Err()
 }
 
 // GetUserProfile 获取用户最新信息

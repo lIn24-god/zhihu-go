@@ -48,22 +48,23 @@ func (h *UserHandler) Register(c *gin.Context) {
 
 // Login 用户登录
 func (h *UserHandler) Login(c *gin.Context) {
-	var request = dto.LoginRequest{}
+	var req = dto.LoginRequest{}
 
-	if err := c.ShouldBindJSON(&request); err != nil {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "Invalid input")
 		return
 	}
 
 	ctx := c.Request.Context()
-	token, user, err := h.userService.LoginUser(ctx, request.Username, request.Password)
+	accessToken, refreshToken, user, err := h.userService.LoginUser(ctx, req.Username, req.Password)
 	if err != nil {
 		HandleError(c, err)
 		return
 	}
 
 	resp := dto.LoginResponse{
-		Token: token,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 		User: dto.UserBrief{
 			ID:       user.ID,
 			Username: user.Username,
@@ -71,6 +72,48 @@ func (h *UserHandler) Login(c *gin.Context) {
 	}
 
 	response.Success(c, resp)
+}
+
+// Refresh 刷新 token
+func (h *UserHandler) Refresh(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid request")
+		return
+	}
+
+	ctx := c.Request.Context()
+	newAccessToken, newRefreshToken, err := h.userService.RefreshToken(ctx, req.RefreshToken)
+	if err != nil {
+		HandleError(c, err)
+		return
+	}
+
+	response.Success(c, dto.RefreshResponse{
+		AccessToken:  newAccessToken,
+		RefreshToken: newRefreshToken,
+	})
+}
+
+// Logout 登出
+func (h *UserHandler) Logout(c *gin.Context) {
+	// 从上下文中获取用户 ID（由 AuthMiddleware 设置）
+	userIDVal, exists := c.Get("user_id")
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	userID := userIDVal.(uint)
+
+	ctx := c.Request.Context()
+	if err := h.userService.Logout(ctx, userID); err != nil {
+		response.Error(c, http.StatusInternalServerError, "Failed to logout")
+		return
+	}
+
+	response.Success(c, gin.H{"message": "logout success"})
 }
 
 // UpdateProfile 更新用户信息

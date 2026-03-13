@@ -44,6 +44,8 @@ func (r *Router) SetUp(engine *gin.Engine) {
 	public := engine.Group("/api")
 	{
 		public.POST("/user/login", r.userHandler.Login)
+		public.POST("/refresh", r.userHandler.Refresh)
+		public.POST("/logout", middleware.AuthMiddleware(), r.userHandler.Logout) // 需要认证
 		public.POST("/user/register", r.userHandler.Register)
 		public.GET("/posts/search", r.postHandler.SearchPosts)
 	}

@@ -4,12 +4,14 @@ import "errors"
 
 var (
 	// 用户相关
-	ErrUserNotFound      = errors.New("user not found")
-	ErrUserAlreadyExists = errors.New("user already exists")
-	ErrInvalidPassword   = errors.New("invalid password")
-	ErrUnauthorized      = errors.New("unauthorized")
-	ErrCannotFollowSelf  = errors.New("cannot follow yourself")
-	ErrAlreadyFollowed   = errors.New("already followed")
+	ErrUserNotFound        = errors.New("user not found")
+	ErrUserAlreadyExists   = errors.New("user already exists")
+	ErrInvalidPassword     = errors.New("invalid password")
+	ErrUnauthorized        = errors.New("unauthorized")
+	ErrCannotFollowSelf    = errors.New("cannot follow yourself")
+	ErrAlreadyFollowed     = errors.New("already followed")
+	ErrInvalidRefreshToken = errors.New("invalid refresh token")
+	ErrRefreshTokenExpired = errors.New("refresh token expired")
 
 	// 文章相关
 	ErrPostNotFound = errors.New("post not found")

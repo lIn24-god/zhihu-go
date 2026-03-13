@@ -12,10 +12,16 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-// LoginResponse 登录相应
+// LoginResponse 登录响应
 type LoginResponse struct {
-	Token string    `json:"token"`
-	User  UserBrief `json:"user"`
+	AccessToken  string    `json:"access_token"`
+	RefreshToken string    `json:"refresh_token"`
+	User         UserBrief `json:"user"`
+}
+
+type RefreshResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 // RegisterRequest 注册请求

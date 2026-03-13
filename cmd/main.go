@@ -97,7 +97,7 @@ func main() {
 		userDAO,
 		5, // worker 数量
 	)
-	userService := service.NewUserService(userDAO)
+	userService := service.NewUserService(userDAO, rdb)
 	postService := service.NewPostService(postDAO, userService, postCache, bloomFilter, feedService)
 	likeService := service.NewLikeService(likeDAO, rdb)
 	followService := service.NewFollowService(followDAO, userDAO)
